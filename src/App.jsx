@@ -24,8 +24,9 @@ const P = {
 const CATEGORIES = [
   { id:"design",  label:"デザイン",    emoji:"✦",  color:P.fiesta,   bg:P.fiestaBg  },
   { id:"coding",  label:"コーディング", emoji:"⟨⟩", color:P.dusty,    bg:P.dustyBg   },
-  { id:"meeting", label:"打ち合わせ",   emoji:"◈",  color:P.lavender, bg:P.lavBg     },
+  { id:"meeting", label:"MTG",   emoji:"◈",  color:P.lavender, bg:P.lavBg     },
   { id:"sales",   label:"セール",       emoji:"◆",  color:P.saffron,  bg:P.saffronBg },
+  { id:"sales",   label:"値上げ",       emoji:"◆",  color:P.saffron,  bg:P.saffronBg },
   { id:"other",   label:"その他",       emoji:"◇",  color:P.sage,     bg:P.sageBg    },
 ];
 
