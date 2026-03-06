@@ -594,6 +594,16 @@ export default function App() {
           overflow-y:auto;
           padding-bottom:20px;
         }
+          .right-side {
+    flex: 1;          /* 残りの幅をすべて使う */
+    overflow-y: auto; /* ここでスクロールを許可する */
+}
+.wrapper {
+    display: flex;
+    height: 100vh;    /* 画面の高さを固定（これが重要） */
+    overflow: hidden; /* 親自体はスクロールさせない */
+}
+
 
         /* Mobile */
         @media (max-width: 700px) {
