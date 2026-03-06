@@ -24,9 +24,8 @@ const P = {
 const CATEGORIES = [
   { id:"design",  label:"デザイン",    emoji:"✦",  color:P.fiesta,   bg:P.fiestaBg  },
   { id:"coding",  label:"コーディング", emoji:"⟨⟩", color:P.dusty,    bg:P.dustyBg   },
-  { id:"meeting", label:"MTG",   emoji:"◈",  color:P.lavender, bg:P.lavBg     },
+  { id:"meeting", label:"打ち合わせ",   emoji:"◈",  color:P.lavender, bg:P.lavBg     },
   { id:"sales",   label:"セール",       emoji:"◆",  color:P.saffron,  bg:P.saffronBg },
-  { id:"sales",   label:"値上げ",       emoji:"◆",  color:P.saffron,  bg:P.saffronBg },
   { id:"other",   label:"その他",       emoji:"◇",  color:P.sage,     bg:P.sageBg    },
 ];
 
@@ -42,10 +41,10 @@ const ENCOURAGEMENTS = [
 ];
 
 const INITIAL_TASKS = [
-  { id:1, text:"バナーデザイン修正",      category:"design",  done:false, priority:"high", deadline:"25/06/10", url:"",                    memo:""         },
-  { id:2, text:"クライアントMTG資料準備",  category:"meeting", done:false, priority:"high", deadline:"25/06/07", url:"",                    memo:"3Fの会議室" },
-  { id:3, text:"LP配色確認",              category:"design",  done:true,  priority:"mid",  deadline:"",         url:"",                    memo:""         },
-  { id:4, text:"カート実装",              category:"coding",  done:false, priority:"mid",  deadline:"25/06/20", url:"https://github.com",  memo:""         },
+  { id:1, text:"バナーデザイン修正",      category:"design",  done:false, waiting:false, priority:"high", deadline:"25/06/10", url:"",                    memo:""         },
+  { id:2, text:"クライアントMTG資料準備",  category:"meeting", done:false, waiting:true,  priority:"high", deadline:"25/06/07", url:"",                    memo:"3Fの会議室" },
+  { id:3, text:"LP配色確認",              category:"design",  done:true,  waiting:false, priority:"mid",  deadline:"",         url:"",                    memo:""         },
+  { id:4, text:"カート実装",              category:"coding",  done:false, waiting:false, priority:"mid",  deadline:"25/06/20", url:"https://github.com",  memo:""         },
 ];
 
 // ── Date helpers ─────────────────────────────────────────────────────────────
@@ -187,7 +186,7 @@ function MiniCalendar({ tasks }) {
 }
 
 // ── TaskCard ─────────────────────────────────────────────────────────────────
-function TaskCard({ task, onToggle, onDelete, onUpdate }) {
+function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate }) {
   const [open,     setOpen]     = useState(false);
   const [editUrl,  setEditUrl]  = useState(task.url);
   const [editMemo, setEditMemo] = useState(task.memo);
@@ -199,8 +198,8 @@ function TaskCard({ task, onToggle, onDelete, onUpdate }) {
 
   return (
     <div style={{
-      background: task.done ? "#FAFAF8" : P.surface,
-      borderRadius:16, border:`1px solid ${P.border}`,
+      background: task.done ? "#FAFAF8" : task.waiting ? "#F3F1FA" : P.surface,
+      borderRadius:16, border:`1px solid ${task.waiting && !task.done ? P.lavender+"60" : P.border}`,
       overflow:"hidden", opacity: task.done ? .45 : 1,
       transition:"box-shadow .15s, transform .15s",
       boxShadow:"0 2px 10px rgba(44,40,37,.05)",
@@ -235,6 +234,13 @@ function TaskCard({ task, onToggle, onDelete, onUpdate }) {
                 border:`1px solid ${chip.c}40`,
               }}>🗓 {chip.label}</span>
             )}
+            {task.waiting && !task.done && (
+              <span style={{
+                fontSize:10, padding:"2px 7px", borderRadius:7,
+                background:P.lavBg, color:P.lavender,
+                border:`1px solid ${P.lavender}40`,
+              }}>⏳ 確認待ち</span>
+            )}
             {(task.url || task.memo) && (
               <span style={{ fontSize:10, color:P.inkFaint }}>
                 {task.url ? "🔗" : ""}{task.memo ? " 📝" : ""}
@@ -244,7 +250,24 @@ function TaskCard({ task, onToggle, onDelete, onUpdate }) {
         </div>
 
         {/* actions */}
-        <div style={{ display:"flex", gap:1, flexShrink:0 }}>
+        <div style={{ display:"flex", gap:1, flexShrink:0, alignItems:"center" }}>
+          {/* 確認依頼ボタン */}
+          {!task.done && (
+            <button
+              onClick={() => onToggleWaiting(task.id)}
+              title={task.waiting ? "確認待ち解除" : "確認依頼する"}
+              style={{
+                display:"flex", alignItems:"center", justifyContent:"center",
+                width:22, height:22, borderRadius:5, cursor:"pointer",
+                border:`1.5px solid ${task.waiting ? P.lavender : P.inkFaint}`,
+                background: task.waiting ? P.lavBg : "none",
+                color: task.waiting ? P.lavender : P.inkFaint,
+                fontSize:11, fontWeight:600,
+                transition:"all .18s", flexShrink:0,
+                marginRight:2,
+              }}
+            >{task.waiting ? "✓" : ""}</button>
+          )}
           <button onClick={() => setOpen(o=>!o)} style={{
             background:"none", border:"none", cursor:"pointer",
             color:P.inkFaint, fontSize:10, padding:"4px 5px", borderRadius:6,
@@ -403,9 +426,10 @@ function AddTaskForm({ onAdd }) {
 
 // ── Main App ─────────────────────────────────────────────────────────────────
 const FILTERS = [
-  { id:"all",      label:"未完了"     },
-  { id:"done",     label:"完了済み ✓"  },
-  { id:"deadline", label:"🗓 〆切あり" },
+  { id:"all",      label:"未完了"      },
+  { id:"done",     label:"完了済み ✓"   },
+  { id:"waiting",  label:"⏳ 確認待ち"  },
+  { id:"deadline", label:"🗓 〆切あり"  },
   ...CATEGORIES.map(c => ({ id:c.id, label:`${c.emoji} ${c.label}` })),
 ];
 
@@ -434,7 +458,7 @@ export default function App() {
   }, [tasks]);
 
   const addTask = ({ text, category, priority, deadline }) => {
-    setTasks(prev => [{ id:Date.now(), text, category, priority, deadline, done:false, url:"", memo:"" }, ...prev]);
+    setTasks(prev => [{ id:Date.now(), text, category, priority, deadline, done:false, waiting:false, url:"", memo:"" }, ...prev]);
   };
   const toggleTask = id => setTasks(prev => prev.map(t => {
     if (t.id !== id) return t;
@@ -445,6 +469,7 @@ export default function App() {
     }
     return { ...t, done:!t.done };
   }));
+  const toggleWaiting = id => setTasks(prev => prev.map(t => t.id===id ? {...t, waiting:!t.waiting} : t));
   const deleteTask = id => setTasks(prev => prev.filter(t => t.id !== id));
   const updateTask = (id, patch) => setTasks(prev => prev.map(t => t.id===id ? {...t,...patch} : t));
 
@@ -456,6 +481,8 @@ export default function App() {
   const filteredTasks = useMemo(() => {
     if (activeFilter === "done")
       return tasks.filter(t => t.done);
+    if (activeFilter === "waiting")
+      return tasks.filter(t => !t.done && t.waiting);
     if (activeFilter === "deadline")
       return tasks
         .filter(t => !t.done && !!parseDeadline(t.deadline))
@@ -536,7 +563,7 @@ export default function App() {
           overflow:hidden;
         }
         .col-left {
-          width:340px;
+          width:320px;
           flex-shrink:0;
           display:flex;
           flex-direction:column;
@@ -611,14 +638,14 @@ export default function App() {
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:10 }}>
               <div>
                 <div style={{ fontSize:9, color:P.inkFaint, letterSpacing:".1em", marginBottom:1 }}>累計達成数</div>
-                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:40, fontWeight:300, color:P.ink, lineHeight:1 }}>
+                <div style={{ fontFamily:"'Noto Sans JP',sans-serif", fontSize:36, fontWeight:300, color:P.ink, lineHeight:1 }}>
                   {done}<span style={{ fontSize:13, color:P.inkFaint }}> 件</span>
                 </div>
               </div>
               <div style={{ textAlign:"right" }}>
                 <div style={{ fontSize:9, color:P.inkFaint, letterSpacing:".1em", marginBottom:1 }}>残 / 全体</div>
-                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:300, color:P.ink }}>
-                  {undone}<span style={{ fontSize:12, color:P.inkFaint }}> / {total}</span>
+                <div style={{ fontFamily:"'Noto Sans JP',sans-serif", fontSize:20, fontWeight:300, color:P.ink }}>
+                  {undone}<span style={{ fontSize:11, color:P.inkFaint, fontWeight:300 }}> / {total}</span>
                 </div>
               </div>
             </div>
@@ -672,13 +699,14 @@ export default function App() {
               }}>
                 <div style={{ fontSize:28, opacity:.5, marginBottom:8 }}>✦</div>
                 {activeFilter==="done"     ? "まだ完了したタスクはありません" :
+                 activeFilter==="waiting"  ? "確認待ちのタスクはありません"   :
                  activeFilter==="deadline" ? "〆切のあるタスクはありません"   :
                  "タスクなし。余裕の一日！"}
               </div>
             ) : (
               filteredTasks.map(t => (
                 <TaskCard key={t.id} task={t}
-                  onToggle={toggleTask} onDelete={deleteTask} onUpdate={updateTask} />
+                  onToggle={toggleTask} onToggleWaiting={toggleWaiting} onDelete={deleteTask} onUpdate={updateTask} />
               ))
             )}
           </div>
