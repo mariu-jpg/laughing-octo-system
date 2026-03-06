@@ -587,6 +587,7 @@ export default function App() {
         }
         .col-right {
           flex:1;
+          min-height:0;
           display:flex;
           flex-direction:column;
           padding:20px 20px 0 20px;
@@ -600,6 +601,7 @@ export default function App() {
         }
         .col-right-tasks {
           flex:1;
+          min-height:0;
           overflow-y:auto;
           padding-bottom:20px;
         }
