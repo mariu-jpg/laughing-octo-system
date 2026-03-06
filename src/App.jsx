@@ -26,8 +26,8 @@ const CATEGORIES = [
   { id:"coding",  label:"コーディング", emoji:"⟨⟩", color:P.dusty,    bg:P.dustyBg   },
   { id:"meeting", label:"打ち合わせ",   emoji:"◈",  color:P.lavender, bg:P.lavBg     },
   { id:"sales",   label:"セール",       emoji:"◆",  color:P.saffron,  bg:P.saffronBg },
-  { id:"neage",   label:"値上げ",       emoji:"◎", color:P.dusty,    bg:P.dustyBg  },
   { id:"other",   label:"その他",       emoji:"◇",  color:P.sage,     bg:P.sageBg    },
+  { id:"price",   label:"値上げ",       emoji:"◉",  color:P.dusty,    bg:P.dustyBg   },
 ];
 
 const PRIORITIES = [
@@ -432,6 +432,9 @@ const FILTERS = [
   { id:"waiting",  label:"⏳ 確認待ち"  },
   { id:"deadline", label:"🗓 〆切あり"  },
   ...CATEGORIES.map(c => ({ id:c.id, label:`${c.emoji} ${c.label}` })),
+  { id:"pri_high", label:"● 急ぎ"  },
+  { id:"pri_mid",  label:"● 普通"  },
+  { id:"pri_low",  label:"● 余裕"  },
 ];
 
 const priOrder = { high:0, mid:1, low:2 };
@@ -484,6 +487,12 @@ export default function App() {
       return tasks.filter(t => t.done);
     if (activeFilter === "waiting")
       return tasks.filter(t => !t.done && t.waiting);
+    if (activeFilter === "pri_high")
+      return [...tasks.filter(t => !t.done && t.priority === "high")].sort((a,b) => priOrder[a.priority]-priOrder[b.priority]);
+    if (activeFilter === "pri_mid")
+      return [...tasks.filter(t => !t.done && t.priority === "mid")].sort((a,b) => priOrder[a.priority]-priOrder[b.priority]);
+    if (activeFilter === "pri_low")
+      return [...tasks.filter(t => !t.done && t.priority === "low")].sort((a,b) => priOrder[a.priority]-priOrder[b.priority]);
     if (activeFilter === "deadline")
       return tasks
         .filter(t => !t.done && !!parseDeadline(t.deadline))
@@ -679,9 +688,9 @@ export default function App() {
               <button key={f.id} onClick={() => setActiveFilter(f.id)} style={{
                 flexShrink:0, fontFamily:"'Noto Sans JP',sans-serif",
                 fontSize:12, padding:"5px 14px", borderRadius:20, cursor:"pointer",
-                border:`1.5px solid ${activeFilter===f.id ? P.ink : P.border}`,
+                border:`1.5px solid ${activeFilter===f.id ? P.ink : f.id.startsWith("pri_") && activeFilter!==f.id ? "transparent" : P.border}`,
                 background: activeFilter===f.id ? P.ink : P.surface,
-                color: activeFilter===f.id ? P.bg : P.inkSub,
+                color: activeFilter===f.id ? P.bg : f.id==="pri_high" ? P.fiesta : f.id==="pri_mid" ? P.dusty : f.id==="pri_low" ? P.inkFaint : P.inkSub,
                 whiteSpace:"nowrap", transition:"all .15s", letterSpacing:".04em",
               }}>{f.label}</button>
             ))}
@@ -702,6 +711,9 @@ export default function App() {
                 {activeFilter==="done"     ? "まだ完了したタスクはありません" :
                  activeFilter==="waiting"  ? "確認待ちのタスクはありません"   :
                  activeFilter==="deadline" ? "〆切のあるタスクはありません"   :
+                 activeFilter==="pri_high"  ? "「急ぎ」のタスクはありません"    :
+                 activeFilter==="pri_mid"   ? "「普通」のタスクはありません"    :
+                 activeFilter==="pri_low"   ? "「余裕」のタスクはありません"    :
                  "タスクなし。余裕の一日！"}
               </div>
             ) : (
