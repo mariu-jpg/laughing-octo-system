@@ -582,7 +582,7 @@ export default function App() {
           display:flex;
           flex-direction:column;
           padding:20px 20px 0 20px;
-          overflow:hidden;
+          overflow:auto;
         }
         .col-right-filters {
           flex-shrink:0;
