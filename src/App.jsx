@@ -517,12 +517,18 @@ export default function App() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Noto+Sans+JP:wght@300;400;500&display=swap');
         *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-        html, body, #root { height:100%; }
+        html { height:100%; }
         body {
+          height:100%;
           background:${P.bg};
           font-family:'Noto Sans JP',sans-serif;
           color:${P.ink};
-          min-height:100vh;
+          overflow:hidden;
+        }
+        #root {
+          height:100%;
+          display:flex;
+          flex-direction:column;
         }
 
         @keyframes slideDown {
@@ -569,7 +575,8 @@ export default function App() {
         /* PC 3-column layout */
         .layout {
           display:flex;
-          height:100vh;
+          flex:1;
+          min-height:0;
           overflow:hidden;
         }
         .col-left {
@@ -582,8 +589,6 @@ export default function App() {
           overflow-y:auto;
           overflow-x:hidden;
           border-right:1px solid ${P.border};
-          height:100vh;
-          box-sizing:border-box;
         }
         .col-right {
           flex:1;
@@ -592,8 +597,6 @@ export default function App() {
           flex-direction:column;
           padding:20px 20px 0 20px;
           overflow:hidden;
-          height:100vh;
-          box-sizing:border-box;
         }
         .col-right-filters {
           flex-shrink:0;
@@ -608,25 +611,26 @@ export default function App() {
 
         /* Mobile: stack vertically */
         @media (max-width: 700px) {
+          body { overflow:auto; }
+          #root { height:auto; }
           .layout {
             flex-direction:column;
-            height:auto;
-            overflow:auto;
+            flex:none;
           }
           .col-left {
             width:100%;
-            height:auto;
             border-right:none;
             border-bottom:1px solid ${P.border};
             overflow-y:visible;
           }
           .col-right {
-            height:auto;
+            min-height:0;
             overflow:visible;
             padding-bottom:40px;
           }
           .col-right-tasks {
             overflow-y:visible;
+            min-height:0;
           }
         }
       `}</style>
