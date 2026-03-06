@@ -576,33 +576,32 @@ export default function App() {
           background:${P.bg};
           z-index:1;
         }
-        .col-right {
-          position:fixed;
-          top:0; left:320px; right:0; bottom:0;
-          display:flex;
-          flex-direction:column;
-          padding:20px 20px 0 20px;
-          overflow:auto;
-        }
-        .col-right-filters {
-          flex-shrink:0;
-          padding-bottom:12px;
-        }
-        .col-right-tasks {
-          flex:1;
-          min-height:0;
-          overflow-y:auto;
-          padding-bottom:20px;
-        }
-          .right-side {
-    flex: 1;          /* 残りの幅をすべて使う */
-    overflow-y: auto; /* ここでスクロールを許可する */
+
+.col-right {
+  position: fixed;
+  top: 0;
+  left: 320px;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 20px 0 20px;
+  /* 親要素ははみ出たものを隠す（中身の .col-right-tasks にスクロールさせるため） */
+  overflow: hidden; 
 }
-.wrapper {
-    display: flex;
-    height: 100vh;    /* 画面の高さを固定（これが重要） */
-    overflow: hidden; /* 親自体はスクロールさせない */
+
+.col-right-filters {
+  flex-shrink: 0;
+  padding-bottom: 12px;
 }
+
+.col-right-tasks {
+  flex: 1;
+  min-height: 0;      /* flex子要素でスクロールを正しく機能させるために必須 */
+  overflow-y: auto;   /* ここでタスク一覧だけをスクロールさせる */
+  padding-bottom: 20px;
+}
+
 
 
         /* Mobile */
