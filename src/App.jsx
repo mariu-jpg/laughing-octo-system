@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 
 // ── Pantone palette (no green) ───────────────────────────────────────────────
 const P = {
@@ -411,10 +411,26 @@ const FILTERS = [
 const priOrder = { high:0, mid:1, low:2 };
 
 export default function App() {
-  const [tasks,        setTasks]        = useState(INITIAL_TASKS);
+  const [tasks, setTasks] = useState(() => {
+    try {
+      const saved = localStorage.getItem("taskapp-tasks");
+      return saved ? JSON.parse(saved) : INITIAL_TASKS;
+    } catch {
+      return INITIAL_TASKS;
+    }
+  });
   const [activeFilter, setActiveFilter] = useState("all");
   const [encText,      setEncText]      = useState("");
   const [showEnc,      setShowEnc]      = useState(false);
+
+  // tasksが変わるたびにlocalStorageへ自動保存
+  useEffect(() => {
+    try {
+      localStorage.setItem("taskapp-tasks", JSON.stringify(tasks));
+    } catch {
+      // ストレージ容量超過などは無視
+    }
+  }, [tasks]);
 
   const addTask = ({ text, category, priority, deadline }) => {
     setTasks(prev => [{ id:Date.now(), text, category, priority, deadline, done:false, url:"", memo:"" }, ...prev]);
@@ -519,7 +535,7 @@ export default function App() {
           overflow:hidden;
         }
         .col-left {
-          width:260px;
+          width:340px;
           flex-shrink:0;
           display:flex;
           flex-direction:column;
