@@ -7,6 +7,7 @@ npm install
 npm run dev
 ```
 
-## デプロイ（Netlify自動）
+## Netlify へデプロイ
 
-GitHubにpushするだけで自動でビルド＆デプロイされます。
+ビルドコマンド: `npm run build`  
+公開ディレクトリ: `dist`
