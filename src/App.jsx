@@ -517,19 +517,8 @@ export default function App() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Noto+Sans+JP:wght@300;400;500&display=swap');
         *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-        html { height:100%; }
-        body {
-          height:100%;
-          background:${P.bg};
-          font-family:'Noto Sans JP',sans-serif;
-          color:${P.ink};
-          overflow:hidden;
-        }
-        #root {
-          height:100%;
-          display:flex;
-          flex-direction:column;
-        }
+        html, body { height:100%; overflow:hidden; background:${P.bg}; }
+        body { font-family:'Noto Sans JP',sans-serif; color:${P.ink}; }
 
         @keyframes slideDown {
           from { opacity:0; transform:translateY(-8px); }
@@ -572,16 +561,11 @@ export default function App() {
         input:focus  { outline:none; }
         textarea:focus { outline:none; }
 
-        /* PC 3-column layout */
-        .layout {
-          display:flex;
-          flex:1;
-          min-height:0;
-          overflow:hidden;
-        }
+        /* PC layout — position:fixed で確実に高さを制御 */
         .col-left {
+          position:fixed;
+          top:0; left:0; bottom:0;
           width:320px;
-          flex-shrink:0;
           display:flex;
           flex-direction:column;
           padding:20px 16px;
@@ -589,10 +573,12 @@ export default function App() {
           overflow-y:auto;
           overflow-x:hidden;
           border-right:1px solid ${P.border};
+          background:${P.bg};
+          z-index:1;
         }
         .col-right {
-          flex:1;
-          min-height:0;
+          position:fixed;
+          top:0; left:320px; right:0; bottom:0;
           display:flex;
           flex-direction:column;
           padding:20px 20px 0 20px;
@@ -609,28 +595,22 @@ export default function App() {
           padding-bottom:20px;
         }
 
-        /* Mobile: stack vertically */
+        /* Mobile */
         @media (max-width: 700px) {
-          body { overflow:auto; }
-          #root { height:auto; }
-          .layout {
-            flex-direction:column;
-            flex:none;
-          }
+          html, body { overflow:auto; }
           .col-left {
+            position:static;
             width:100%;
             border-right:none;
             border-bottom:1px solid ${P.border};
-            overflow-y:visible;
           }
           .col-right {
-            min-height:0;
+            position:static;
             overflow:visible;
             padding-bottom:40px;
           }
           .col-right-tasks {
             overflow-y:visible;
-            min-height:0;
           }
         }
       `}</style>
@@ -648,10 +628,8 @@ export default function App() {
         }}>{encText}</div>
       )}
 
-      <div className="layout">
-
-        {/* ══ LEFT COLUMN ══════════════════════════════════════════════════════ */}
-        <div className="col-left left-scroll">
+      {/* ══ LEFT COLUMN ══════════════════════════════════════════════════════ */}
+      <div className="col-left left-scroll">
 
           {/* stats */}
           <div style={{
@@ -690,13 +668,13 @@ export default function App() {
           {/* add form */}
           <AddTaskForm onAdd={addTask} />
 
-        </div>
+      </div>
 
-        {/* ══ RIGHT COLUMN ═════════════════════════════════════════════════════ */}
-        <div className="col-right">
+      {/* ══ RIGHT COLUMN ═════════════════════════════════════════════════════ */}
+      <div className="col-right">
 
-          {/* filters */}
-          <div className="col-right-filters" style={{
+        {/* filters */}
+        <div className="col-right-filters" style={{
             display:"flex", gap:6,
             overflowX:"auto", paddingBottom:4, scrollbarWidth:"none",
           }}>
@@ -712,8 +690,8 @@ export default function App() {
             ))}
           </div>
 
-          {/* task list — scrollable area */}
-          <div className="task-scroll col-right-tasks" style={{
+        {/* task list — scrollable area */}
+        <div className="task-scroll col-right-tasks" style={{
             display:"flex", flexDirection:"column", gap:8,
             paddingRight:4,
           }}>
@@ -740,7 +718,6 @@ export default function App() {
             )}
           </div>
 
-        </div>
       </div>
     </>
   );
