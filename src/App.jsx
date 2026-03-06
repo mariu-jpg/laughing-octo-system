@@ -200,7 +200,7 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate }) {
   return (
     <div style={{
       background: task.done ? "#FAFAF8" : task.waiting ? "#F3F1FA" : P.surface,
-      borderRadius:16, border:`1px solid ${task.waiting && !task.done ? P.lavender+"60" : P.border}`,
+      borderRadius:16, flexShrink: 0, border:`1px solid ${task.waiting && !task.done ? P.lavender+"60" : P.border}`,
       overflow:"hidden", opacity: task.done ? .45 : 1,
       transition:"box-shadow .15s, transform .15s",
       boxShadow:"0 2px 10px rgba(44,40,37,.05)",
@@ -577,30 +577,35 @@ export default function App() {
           z-index:1;
         }
 
+/* --- 修正後：ここをそのまま貼り付け --- */
 .col-right {
   position: fixed;
-  top: 0;
-  left: 320px;
-  right: 0;
+  top: 0; 
+  left: 320px; 
+  right: 0; 
   bottom: 0;
   display: flex;
   flex-direction: column;
   padding: 20px 20px 0 20px;
-  /* 親要素ははみ出たものを隠す（中身の .col-right-tasks にスクロールさせるため） */
+  /* 親は溢れた分を「隠す」設定にする（これが圧迫を防ぐコツ） */
   overflow: hidden; 
 }
 
 .col-right-filters {
-  flex-shrink: 0;
+  flex-shrink: 0; /* フィルター部分は絶対に潰さない */
   padding-bottom: 12px;
 }
 
 .col-right-tasks {
-  flex: 1;
-  min-height: 0;      /* flex子要素でスクロールを正しく機能させるために必須 */
-  overflow-y: auto;   /* ここでタスク一覧だけをスクロールさせる */
+  flex: 1;         /* 余った画面の高さをすべてこのエリアに割り当てる */
+  min-height: 0;   /* これがないと、中身に押されてエリアが広がろうとしてしまいます */
+  overflow-y: auto; /* ここで初めてスクロールを許可する */
   padding-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
+/* -------------------------------------- */
 
 
 
