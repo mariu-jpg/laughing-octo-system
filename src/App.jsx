@@ -577,17 +577,31 @@ export default function App() {
           flex-shrink:0;
           display:flex;
           flex-direction:column;
-          padding:24px 16px;
-          gap:14px;
+          padding:20px 16px;
+          gap:12px;
           overflow-y:auto;
+          overflow-x:hidden;
           border-right:1px solid ${P.border};
+          height:100vh;
+          box-sizing:border-box;
         }
         .col-right {
           flex:1;
           display:flex;
           flex-direction:column;
-          padding:24px 20px;
+          padding:20px 20px 0 20px;
           overflow:hidden;
+          height:100vh;
+          box-sizing:border-box;
+        }
+        .col-right-filters {
+          flex-shrink:0;
+          padding-bottom:12px;
+        }
+        .col-right-tasks {
+          flex:1;
+          overflow-y:auto;
+          padding-bottom:20px;
         }
 
         /* Mobile: stack vertically */
@@ -599,12 +613,18 @@ export default function App() {
           }
           .col-left {
             width:100%;
+            height:auto;
             border-right:none;
             border-bottom:1px solid ${P.border};
             overflow-y:visible;
           }
           .col-right {
+            height:auto;
             overflow:visible;
+            padding-bottom:40px;
+          }
+          .col-right-tasks {
+            overflow-y:visible;
           }
         }
       `}</style>
@@ -627,24 +647,14 @@ export default function App() {
         {/* ══ LEFT COLUMN ══════════════════════════════════════════════════════ */}
         <div className="col-left left-scroll">
 
-          {/* logo / date */}
-          <div>
-            <div style={{
-              fontFamily:"'Cormorant Garamond',serif", fontSize:22,
-              fontWeight:300, color:P.ink, letterSpacing:".04em", lineHeight:1.2,
-            }}>
-              今日の<em style={{ fontStyle:"italic", color:P.fiesta }}>やること</em>
-            </div>
-            <div style={{ fontSize:10, color:P.inkFaint, marginTop:4, letterSpacing:".06em", lineHeight:1.6 }}>
-              {todayLabel}
-            </div>
-          </div>
-
           {/* stats */}
           <div style={{
-            background:P.surface, borderRadius:18, padding:"14px 14px 12px",
+            background:P.surface, borderRadius:18, padding:"12px 14px 12px",
             border:`1px solid ${P.border}`,
           }}>
+            <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".06em", marginBottom:10, lineHeight:1.5 }}>
+              {todayLabel}
+            </div>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:10 }}>
               <div>
                 <div style={{ fontSize:9, color:P.inkFaint, letterSpacing:".1em", marginBottom:1 }}>累計達成数</div>
@@ -680,9 +690,9 @@ export default function App() {
         <div className="col-right">
 
           {/* filters */}
-          <div style={{
-            display:"flex", gap:6, marginBottom:14,
-            overflowX:"auto", paddingBottom:4, scrollbarWidth:"none", flexShrink:0,
+          <div className="col-right-filters" style={{
+            display:"flex", gap:6,
+            overflowX:"auto", paddingBottom:4, scrollbarWidth:"none",
           }}>
             {FILTERS.map(f => (
               <button key={f.id} onClick={() => setActiveFilter(f.id)} style={{
@@ -697,8 +707,8 @@ export default function App() {
           </div>
 
           {/* task list — scrollable area */}
-          <div className="task-scroll" style={{
-            flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:8,
+          <div className="task-scroll col-right-tasks" style={{
+            display:"flex", flexDirection:"column", gap:8,
             paddingRight:4,
           }}>
             {filteredTasks.length === 0 ? (
