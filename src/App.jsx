@@ -89,7 +89,27 @@ function deadlineChip(str) {
   return               { label: str,                   c:P.inkSub,   bg:P.bg        };
 }
 
-// ── Mini Calendar ────────────────────────────────────────────────────────────
+// ── Daily progress helpers ───────────────────────────────────────────────────
+function todayKey() {
+  const t = new Date();
+  return `taskapp-daily-${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+}
+
+function loadDailyProgress() {
+  try {
+    const key = todayKey();
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : { doneIds: [] };
+  } catch { return { doneIds: [] }; }
+}
+
+function saveDailyProgress(doneIds) {
+  try {
+    localStorage.setItem(todayKey(), JSON.stringify({ doneIds }));
+  } catch {}
+}
+
+
 function MiniCalendar({ tasks }) {
   const today = localToday();
   const [viewYear,  setViewYear]  = useState(today.getFullYear());
@@ -188,14 +208,36 @@ function MiniCalendar({ tasks }) {
 
 // ── TaskCard ─────────────────────────────────────────────────────────────────
 function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate }) {
-  const [open,     setOpen]     = useState(false);
-  const [editUrl,  setEditUrl]  = useState(task.url);
-  const [editMemo, setEditMemo] = useState(task.memo);
-  const [dirty,    setDirty]    = useState(false);
+  const [open,      setOpen]      = useState(false);
+  const [editUrl,   setEditUrl]   = useState(task.url);
+  const [editMemo,  setEditMemo]  = useState(task.memo);
+  const [dirty,     setDirty]     = useState(false);
+  const [editing,   setEditing]   = useState(false);
+  // edit fields
+  const [editText, setEditText]   = useState(task.text);
+  const [editCat,  setEditCat]    = useState(task.category);
+  const [editPri,  setEditPri]    = useState(task.priority);
+  const [editDl,   setEditDl]     = useState(task.deadline);
+
+  // sync when task prop changes
+  useEffect(() => {
+    setEditText(task.text);
+    setEditCat(task.category);
+    setEditPri(task.priority);
+    setEditDl(task.deadline);
+    setEditUrl(task.url);
+    setEditMemo(task.memo);
+  }, [task]);
 
   const cat  = CATEGORIES.find(c => c.id === task.category) || CATEGORIES[4];
   const pri  = PRIORITIES.find(p => p.id === task.priority) || PRIORITIES[1];
   const chip = deadlineChip(task.deadline);
+
+  const saveEdit = () => {
+    onUpdate(task.id, { text: editText.trim() || task.text, category: editCat, priority: editPri, deadline: editDl, url: editUrl, memo: editMemo });
+    setEditing(false);
+    setDirty(false);
+  };
 
   return (
     <div style={{
@@ -205,6 +247,100 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate }) {
       transition:"box-shadow .15s, transform .15s",
       boxShadow:"0 2px 10px rgba(44,40,37,.05)",
     }}>
+      {/* ── edit mode ── */}
+      {editing ? (
+        <div style={{ padding:"14px 14px 16px", animation:"slideDown .18s ease" }}>
+          <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".1em", textTransform:"uppercase", marginBottom:8 }}>タスクを編集</div>
+          {/* name */}
+          <input value={editText} onChange={e => setEditText(e.target.value)}
+            style={{
+              width:"100%", border:"none", borderBottom:`1.5px solid ${P.inkFaint}`,
+              outline:"none", fontFamily:"inherit", fontSize:14,
+              color:P.ink, background:"transparent",
+              padding:"4px 0 8px", marginBottom:12,
+            }}
+          />
+          {/* category */}
+          <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".1em", textTransform:"uppercase", marginBottom:6 }}>カテゴリ</div>
+          <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:10 }}>
+            {CATEGORIES.map(c => (
+              <button key={c.id} onClick={() => setEditCat(c.id)} style={{
+                fontFamily:"inherit", fontSize:10, padding:"3px 9px", borderRadius:10, cursor:"pointer",
+                border:`1.5px solid ${editCat===c.id ? c.color : "transparent"}`,
+                background: editCat===c.id ? c.bg : P.bg,
+                color: editCat===c.id ? c.color : P.inkSub,
+                transition:"all .15s",
+              }}>{c.emoji} {c.label}</button>
+            ))}
+          </div>
+          {/* priority */}
+          <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".1em", textTransform:"uppercase", marginBottom:6 }}>優先度</div>
+          <div style={{ display:"flex", gap:4, marginBottom:10 }}>
+            {PRIORITIES.map(p => (
+              <button key={p.id} onClick={() => setEditPri(p.id)} style={{
+                fontFamily:"inherit", fontSize:10, padding:"3px 9px", borderRadius:10, cursor:"pointer",
+                border:`1.5px solid ${editPri===p.id ? p.color : "transparent"}`,
+                background: editPri===p.id ? `${p.color}18` : P.bg,
+                color: editPri===p.id ? p.color : P.inkSub,
+                transition:"all .15s",
+              }}>● {p.label}</button>
+            ))}
+          </div>
+          {/* deadline */}
+          <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".1em", textTransform:"uppercase", marginBottom:6 }}>〆切日</div>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+            <input value={editDl} placeholder="yymmdd" maxLength={8}
+              onChange={e => setEditDl(fmtDlInput(e.target.value))}
+              style={{
+                width:110, border:`1.5px solid ${P.border}`, borderRadius:10,
+                padding:"5px 10px", fontFamily:"inherit", fontSize:12,
+                color:P.ink, outline:"none", background:P.surface,
+              }}
+            />
+            {parseDeadline(editDl) && (
+              <span style={{ fontSize:11, color:P.inkSub }}>
+                🗓 {parseDeadline(editDl).toLocaleDateString("ja-JP",{month:"long",day:"numeric",weekday:"short"})}
+              </span>
+            )}
+          </div>
+          {/* URL */}
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+            <span style={{ fontSize:11, color:P.inkSub, minWidth:44, whiteSpace:"nowrap" }}>🔗 URL</span>
+            <input value={editUrl} placeholder="https://..."
+              onChange={e => setEditUrl(e.target.value)}
+              style={{
+                flex:1, border:`1px solid ${P.border}`, borderRadius:9,
+                padding:"5px 9px", fontSize:12, fontFamily:"inherit",
+                color:P.ink, background:P.surface, outline:"none",
+              }}
+            />
+          </div>
+          {/* Memo */}
+          <div style={{ display:"flex", alignItems:"flex-start", gap:8, marginBottom:12 }}>
+            <span style={{ fontSize:11, color:P.inkSub, minWidth:44, whiteSpace:"nowrap", paddingTop:6 }}>📝 メモ</span>
+            <textarea value={editMemo} placeholder="メモを入力..." rows={2}
+              onChange={e => setEditMemo(e.target.value)}
+              style={{
+                flex:1, border:`1px solid ${P.border}`, borderRadius:9,
+                padding:"5px 9px", fontSize:12, fontFamily:"inherit",
+                color:P.ink, background:P.surface, outline:"none", resize:"vertical",
+              }}
+            />
+          </div>
+          <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+            <button onClick={() => { setEditing(false); setEditText(task.text); setEditCat(task.category); setEditPri(task.priority); setEditDl(task.deadline); setEditUrl(task.url); setEditMemo(task.memo); }} style={{
+              background:"none", border:`1px solid ${P.border}`, color:P.inkSub,
+              padding:"5px 14px", borderRadius:10, fontSize:11, cursor:"pointer",
+            }}>キャンセル</button>
+            <button onClick={saveEdit} style={{
+              background:P.ink, color:P.bg, border:"none",
+              padding:"5px 16px", borderRadius:10, fontSize:11,
+              cursor:"pointer", letterSpacing:".04em",
+            }}>保存する ✓</button>
+          </div>
+        </div>
+      ) : (
+      <>
       <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px" }}>
         {/* check */}
         <button onClick={() => onToggle(task.id)} style={{
@@ -269,6 +405,16 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate }) {
               }}
             >{task.waiting ? "✓" : ""}</button>
           )}
+          {/* 編集ボタン */}
+          {!task.done && (
+            <button onClick={() => { setEditing(true); setOpen(false); }}
+              title="編集"
+              style={{
+                background:"none", border:"none", cursor:"pointer",
+                color:P.inkFaint, fontSize:13, padding:"4px 5px", borderRadius:6,
+                transition:"color .15s",
+              }}>✎</button>
+          )}
           <button onClick={() => setOpen(o=>!o)} style={{
             background:"none", border:"none", cursor:"pointer",
             color:P.inkFaint, fontSize:10, padding:"4px 5px", borderRadius:6,
@@ -328,6 +474,8 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate }) {
             </div>
           )}
         </div>
+      )}
+      </>
       )}
     </div>
   );
@@ -452,14 +600,20 @@ export default function App() {
   const [encText,      setEncText]      = useState("");
   const [showEnc,      setShowEnc]      = useState(false);
 
+  // 今日完了したタスクIDを管理
+  const [todayDoneIds, setTodayDoneIds] = useState(() => loadDailyProgress().doneIds);
+
   // tasksが変わるたびにlocalStorageへ自動保存
   useEffect(() => {
     try {
       localStorage.setItem("taskapp-tasks", JSON.stringify(tasks));
-    } catch {
-      // ストレージ容量超過などは無視
-    }
+    } catch {}
   }, [tasks]);
+
+  // todayDoneIdsが変わるたびに日次進捗を保存
+  useEffect(() => {
+    saveDailyProgress(todayDoneIds);
+  }, [todayDoneIds]);
 
   const addTask = ({ text, category, priority, deadline }) => {
     setTasks(prev => [{ id:Date.now(), text, category, priority, deadline, done:false, waiting:false, url:"", memo:"" }, ...prev]);
@@ -470,6 +624,11 @@ export default function App() {
       const msg = ENCOURAGEMENTS[Math.floor(Math.random()*ENCOURAGEMENTS.length)];
       setEncText(msg); setShowEnc(true);
       setTimeout(() => setShowEnc(false), 2200);
+      // 今日の完了リストに追加
+      setTodayDoneIds(ids => ids.includes(id) ? ids : [...ids, id]);
+    } else {
+      // 未完了に戻したら今日のリストから除外
+      setTodayDoneIds(ids => ids.filter(i => i !== id));
     }
     return { ...t, done:!t.done };
   }));
@@ -477,10 +636,11 @@ export default function App() {
   const deleteTask = id => setTasks(prev => prev.filter(t => t.id !== id));
   const updateTask = (id, patch) => setTasks(prev => prev.map(t => t.id===id ? {...t,...patch} : t));
 
-  const done  = tasks.filter(t => t.done).length;
-  const total = tasks.length;
-  const undone = total - done;
-  const pct   = total === 0 ? 0 : Math.round((done/total)*100);
+  // 今日の進捗（今日完了 / 全体タスク数）
+  const todayDone  = todayDoneIds.filter(id => tasks.some(t => t.id === id)).length;
+  const total      = tasks.length;
+  const undone     = tasks.filter(t => !t.done).length;
+  const pct        = total === 0 ? 0 : Math.round((todayDone / total) * 100);
 
   const filteredTasks = useMemo(() => {
     if (activeFilter === "done")
@@ -541,9 +701,9 @@ export default function App() {
 
         .bar-fill {
           height:100%; border-radius:8px;
-          background:linear-gradient(90deg,${P.fiesta},${P.saffron},${P.lavender});
-          background-size:200% auto;
-          animation:shimBar 4s linear infinite;
+          background:linear-gradient(90deg,#F2A7C3,#C9A7E8,#A7C9F2,#F2A7C3);
+          background-size:300% auto;
+          animation:shimBar 5s linear infinite;
           transition:width .9s cubic-bezier(.4,0,.2,1);
         }
 
@@ -655,9 +815,9 @@ export default function App() {
             </div>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:10 }}>
               <div>
-                <div style={{ fontSize:9, color:P.inkFaint, letterSpacing:".1em", marginBottom:1 }}>累計達成数</div>
+                <div style={{ fontSize:9, color:P.inkFaint, letterSpacing:".1em", marginBottom:1 }}>今日の達成数</div>
                 <div style={{ fontFamily:"'Noto Sans JP',sans-serif", fontSize:36, fontWeight:300, color:P.ink, lineHeight:1 }}>
-                  {done}<span style={{ fontSize:13, color:P.inkFaint }}> 件</span>
+                  {todayDone}<span style={{ fontSize:13, color:P.inkFaint }}> 件</span>
                 </div>
               </div>
               <div style={{ textAlign:"right" }}>
