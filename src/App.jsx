@@ -842,14 +842,19 @@ function AddTaskForm({ onAdd }) {
 // ── Main App ─────────────────────────────────────────────────────────────────
 const FILTERS = [
   { id:"all",      label:"未完了"      },
-  { id:"memos",    label:"📋 メモ"     },
-  { id:"done",     label:"完了済み ✓"   },
   { id:"waiting",  label:"⏳ 確認待ち"  },
   { id:"deadline", label:"🗓 〆切あり"  },
-  ...CATEGORIES.map(c => ({ id:c.id, label:`${c.emoji} ${c.label}` })),
+  { id:"meeting",  label:"◈ 打ち合わせ" },
+  { id:"memos",    label:"📋 メモ"     },
   { id:"pri_high", label:"● 急ぎ"  },
   { id:"pri_mid",  label:"● 普通"  },
   { id:"pri_low",  label:"● 余裕"  },
+  { id:"price",    label:"◉ 値上げ"    },
+  { id:"design",   label:"✦ デザイン"  },
+  { id:"coding",   label:"⟨⟩ コーディング" },
+  { id:"sales",    label:"◆ セール"    },
+  { id:"other",    label:"◇ その他"    },
+  { id:"done",     label:"完了済み ✓"   },
 ];
 
 const priOrder = { high:0, mid:1, low:2 };
