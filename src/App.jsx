@@ -206,6 +206,249 @@ function MiniCalendar({ tasks }) {
   );
 }
 
+// ── Memo helpers ─────────────────────────────────────────────────────────────
+const MEMO_CATEGORIES = [
+  { id:"all",     label:"すべて", color:P.inkSub,   bg:P.bg        },
+  ...CATEGORIES.map(c => ({ id:c.id, label:c.label, color:c.color, bg:c.bg, emoji:c.emoji })),
+];
+
+const MEMO_COLORS = [
+  { id:"pink",   bg:"#FDE8F0", border:"#F2A7C3", label:"ピンク"     },
+  { id:"lav",    bg:"#EDE8F9", border:"#C9A7E8", label:"ラベンダー" },
+  { id:"sky",    bg:"#E8F2FD", border:"#A7C9F2", label:"スカイ"     },
+  { id:"mint",   bg:"#E8F7F0", border:"#A7E8C9", label:"ミント"     },
+  { id:"cream",  bg:"#FDF5E8", border:"#E8CFA7", label:"クリーム"   },
+];
+
+function MemoCard({ memo, onUpdate, onDelete, onDragStart, onDragEnter, onDragEnd, isDraggingOver }) {
+  const [editing, setEditing]   = useState(false);
+  const [editTitle, setEditTitle] = useState(memo.title);
+  const [editBody,  setEditBody]  = useState(memo.body);
+  const [editCat,   setEditCat]   = useState(memo.category);
+  const [editColor, setEditColor] = useState(memo.color);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    setEditTitle(memo.title);
+    setEditBody(memo.body);
+    setEditCat(memo.category);
+    setEditColor(memo.color);
+  }, [memo]);
+
+  useEffect(() => {
+    if (editing && textareaRef.current) textareaRef.current.focus();
+  }, [editing]);
+
+  const mc = MEMO_COLORS.find(c => c.id === editColor) || MEMO_COLORS[0];
+  const displayMc = MEMO_COLORS.find(c => c.id === memo.color) || MEMO_COLORS[0];
+  const cat = CATEGORIES.find(c => c.id === memo.category);
+
+  const save = () => {
+    onUpdate(memo.id, { title: editTitle, body: editBody, category: editCat, color: editColor });
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div style={{
+        background: mc.bg, border:`1.5px solid ${mc.border}`,
+        borderRadius:16, padding:"14px", display:"flex", flexDirection:"column", gap:10,
+        boxShadow:"0 4px 16px rgba(44,40,37,.08)", animation:"slideDown .18s ease",
+      }}>
+        {/* color picker */}
+        <div style={{ display:"flex", gap:5, alignItems:"center" }}>
+          {MEMO_COLORS.map(c => (
+            <button key={c.id} onClick={() => setEditColor(c.id)} style={{
+              width:18, height:18, borderRadius:"50%", border:`2px solid ${editColor===c.id ? P.ink : "transparent"}`,
+              background:c.bg, cursor:"pointer", outline:`1px solid ${c.border}`,
+            }} title={c.label} />
+          ))}
+          <span style={{ fontSize:10, color:P.inkFaint, marginLeft:4 }}>色</span>
+        </div>
+        {/* title */}
+        <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+          placeholder="タイトル（任意）"
+          style={{
+            border:"none", borderBottom:`1px solid ${mc.border}`,
+            background:"transparent", fontFamily:"inherit", fontSize:13, fontWeight:500,
+            color:P.ink, outline:"none", padding:"2px 0 6px",
+          }}
+        />
+        {/* body */}
+        <textarea ref={textareaRef} value={editBody} onChange={e => setEditBody(e.target.value)}
+          placeholder="メモを入力..."
+          rows={4}
+          style={{
+            border:`1px solid ${mc.border}`, borderRadius:10,
+            background:"rgba(255,255,255,.6)", fontFamily:"inherit", fontSize:12,
+            color:P.ink, outline:"none", padding:"8px 10px", resize:"vertical", lineHeight:1.7,
+          }}
+        />
+        {/* category */}
+        <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+          {CATEGORIES.map(c => (
+            <button key={c.id} onClick={() => setEditCat(c.id)} style={{
+              fontFamily:"inherit", fontSize:10, padding:"2px 8px", borderRadius:10, cursor:"pointer",
+              border:`1.5px solid ${editCat===c.id ? c.color : "transparent"}`,
+              background: editCat===c.id ? c.bg : "rgba(255,255,255,.5)",
+              color: editCat===c.id ? c.color : P.inkSub, transition:"all .15s",
+            }}>{c.emoji} {c.label}</button>
+          ))}
+        </div>
+        {/* actions */}
+        <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+          <button onClick={() => { setEditing(false); setEditTitle(memo.title); setEditBody(memo.body); setEditCat(memo.category); setEditColor(memo.color); }} style={{
+            background:"none", border:`1px solid ${mc.border}`, color:P.inkSub,
+            padding:"4px 12px", borderRadius:9, fontSize:11, cursor:"pointer",
+          }}>キャンセル</button>
+          <button onClick={save} style={{
+            background:P.ink, color:P.bg, border:"none",
+            padding:"4px 14px", borderRadius:9, fontSize:11, cursor:"pointer",
+          }}>保存 ✓</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      draggable
+      onDragStart={() => onDragStart && onDragStart(memo.id)}
+      onDragEnter={() => onDragEnter && onDragEnter(memo.id)}
+      onDragEnd={() => onDragEnd && onDragEnd()}
+      onDragOver={e => e.preventDefault()}
+      style={{
+        background: displayMc.bg,
+        border:`1.5px solid ${isDraggingOver ? P.lavender : displayMc.border}`,
+        borderRadius:16, padding:"14px", cursor:"grab",
+        boxShadow: isDraggingOver
+          ? "0 6px 24px rgba(123,110,166,.25)"
+          : "0 2px 10px rgba(44,40,37,.06)",
+        transform: isDraggingOver ? "scale(1.02)" : "scale(1)",
+        transition:"box-shadow .15s, transform .15s, border-color .15s",
+        display:"flex", flexDirection:"column", gap:8, position:"relative",
+        minHeight:80,
+      }}
+    >
+      {/* header */}
+      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
+        <div style={{ flex:1, minWidth:0 }}>
+          {memo.title && (
+            <div style={{ fontSize:13, fontWeight:500, color:P.ink, lineHeight:1.4, marginBottom:4, wordBreak:"break-all" }}>
+              {memo.title}
+            </div>
+          )}
+          {memo.body && (
+            <div style={{ fontSize:12, color:P.inkSub, lineHeight:1.7, whiteSpace:"pre-wrap", wordBreak:"break-all" }}>
+              {memo.body}
+            </div>
+          )}
+          {!memo.title && !memo.body && (
+            <div style={{ fontSize:12, color:P.inkFaint, fontStyle:"italic" }}>（空のメモ）</div>
+          )}
+        </div>
+        <div style={{ display:"flex", gap:2, flexShrink:0 }}>
+          <button onClick={() => setEditing(true)} style={{
+            background:"none", border:"none", cursor:"pointer", color:P.inkFaint,
+            fontSize:13, padding:"2px 4px", borderRadius:6, lineHeight:1,
+          }} title="編集">✎</button>
+          <button onClick={() => onDelete(memo.id)} style={{
+            background:"none", border:"none", cursor:"pointer", color:P.inkFaint,
+            fontSize:16, padding:"1px 4px", borderRadius:6, lineHeight:1,
+          }} title="削除">×</button>
+        </div>
+      </div>
+      {/* footer */}
+      {cat && (
+        <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+          <span style={{ fontSize:10, padding:"1px 7px", borderRadius:6, background:cat.bg, color:cat.color }}>
+            {cat.emoji} {cat.label}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MemoBoard({ memos, onAdd, onUpdate, onDelete, onReorder }) {
+  const [filterCat, setFilterCat] = useState("all");
+  const [dragId,    setDragId]    = useState(null);
+  const [hoverDragId, setHoverDragId] = useState(null);
+
+  const filtered = filterCat === "all"
+    ? memos
+    : memos.filter(m => m.category === filterCat);
+
+  const addMemo = () => {
+    onAdd({ title:"", body:"", category: filterCat === "all" ? "" : filterCat, color:"pink" });
+  };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:12, height:"100%" }}>
+      {/* sub-filter bar */}
+      <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", flexShrink:0 }}>
+        {MEMO_CATEGORIES.map(c => (
+          <button key={c.id} onClick={() => setFilterCat(c.id)} style={{
+            fontFamily:"inherit", fontSize:11, padding:"4px 12px", borderRadius:16, cursor:"pointer",
+            border:`1.5px solid ${filterCat===c.id ? (c.color||P.ink) : P.border}`,
+            background: filterCat===c.id ? (c.bg||P.ink) : P.surface,
+            color: filterCat===c.id ? (c.color||P.bg) : P.inkSub,
+            whiteSpace:"nowrap", transition:"all .15s",
+          }}>{c.emoji ? `${c.emoji} ` : ""}{c.label}</button>
+        ))}
+        <button onClick={addMemo} style={{
+          marginLeft:"auto", fontFamily:"inherit", fontSize:11,
+          padding:"4px 14px", borderRadius:16, cursor:"pointer",
+          background:P.ink, color:P.bg, border:"none",
+          letterSpacing:".04em", whiteSpace:"nowrap",
+        }}>＋ メモを追加</button>
+      </div>
+
+      {/* memo grid — 3 columns on PC */}
+      <div style={{
+        flex:1, minHeight:0, overflowY:"auto",
+        display:"grid",
+        gridTemplateColumns:"repeat(3, 1fr)",
+        gridAutoRows:"min-content",
+        gap:12,
+        paddingBottom:20, paddingRight:4,
+        alignContent:"start",
+      }}
+        className="task-scroll memo-grid"
+      >
+        {filtered.length === 0 ? (
+          <div style={{
+            gridColumn:"1/-1",
+            display:"flex", flexDirection:"column",
+            alignItems:"center", justifyContent:"center",
+            color:P.inkFaint, fontSize:13, lineHeight:2.4, textAlign:"center",
+            minHeight:200,
+          }}>
+            <div style={{ fontSize:28, opacity:.4, marginBottom:8 }}>📋</div>
+            メモがまだありません。<br/>右上の「＋ メモを追加」から作成できます。
+          </div>
+        ) : (
+          filtered.map(m => (
+            <MemoCard key={m.id} memo={m}
+              onUpdate={onUpdate} onDelete={onDelete}
+              onDragStart={id => { setDragId(id); setHoverDragId(id); }}
+              onDragEnter={id => {
+                if (dragId !== null && id !== dragId) {
+                  onReorder(dragId, id);
+                  setDragId(id);
+                }
+                setHoverDragId(id);
+              }}
+              onDragEnd={() => { setDragId(null); setHoverDragId(null); }}
+              isDraggingOver={hoverDragId === m.id && dragId !== null && dragId !== m.id}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── TaskCard ─────────────────────────────────────────────────────────────────
 function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragStart, onDragEnter, onDragEnd, isDraggingOver }) {
   const [open,      setOpen]      = useState(false);
@@ -599,6 +842,7 @@ function AddTaskForm({ onAdd }) {
 // ── Main App ─────────────────────────────────────────────────────────────────
 const FILTERS = [
   { id:"all",      label:"未完了"      },
+  { id:"memos",    label:"📋 メモ"     },
   { id:"done",     label:"完了済み ✓"   },
   { id:"waiting",  label:"⏳ 確認待ち"  },
   { id:"deadline", label:"🗓 〆切あり"  },
@@ -660,6 +904,35 @@ export default function App() {
   const toggleWaiting = id => setTasks(prev => prev.map(t => t.id===id ? {...t, waiting:!t.waiting} : t));
   const deleteTask = id => setTasks(prev => prev.filter(t => t.id !== id));
   const updateTask = (id, patch) => setTasks(prev => prev.map(t => t.id===id ? {...t,...patch} : t));
+
+  // ── Memos ─────────────────────────────────────────────────────────────────
+  const [memos, setMemos] = useState(() => {
+    try {
+      const saved = localStorage.getItem("taskapp-memos");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem("taskapp-memos", JSON.stringify(memos)); } catch {}
+  }, [memos]);
+
+  const addMemo = ({ title, body, category, color }) => {
+    setMemos(prev => [{ id:Date.now(), title, body, category, color }, ...prev]);
+  };
+  const updateMemo = (id, patch) => setMemos(prev => prev.map(m => m.id===id ? {...m,...patch} : m));
+  const deleteMemo = id => setMemos(prev => prev.filter(m => m.id !== id));
+  const reorderMemos = (dragId, hoverId) => {
+    setMemos(prev => {
+      const arr = [...prev];
+      const di = arr.findIndex(m => m.id === dragId);
+      const hi = arr.findIndex(m => m.id === hoverId);
+      if (di < 0 || hi < 0 || di === hi) return prev;
+      const [item] = arr.splice(di, 1);
+      arr.splice(hi, 0, item);
+      return arr;
+    });
+  };
 
   // ドラッグ＆ドロップで並び替え
   const reorderTasks = (dragId, hoverId) => {
@@ -824,6 +1097,9 @@ export default function App() {
           .col-right-tasks {
             overflow-y:visible;
           }
+          .memo-grid {
+            grid-template-columns: 1fr !important;
+          }
         }
       `}</style>
 
@@ -902,7 +1178,18 @@ export default function App() {
             ))}
           </div>
 
-        {/* task list — scrollable area */}
+        {/* task list — scrollable area / memo board */}
+        {activeFilter === "memos" ? (
+          <div className="col-right-tasks" style={{ paddingRight:4 }}>
+            <MemoBoard
+              memos={memos}
+              onAdd={addMemo}
+              onUpdate={updateMemo}
+              onDelete={deleteMemo}
+              onReorder={reorderMemos}
+            />
+          </div>
+        ) : (
         <div className="task-scroll col-right-tasks" style={{
             display:"flex", flexDirection:"column", gap:8,
             paddingRight:4,
@@ -940,6 +1227,7 @@ export default function App() {
               ))
             )}
           </div>
+        )}
 
       </div>
     </>
