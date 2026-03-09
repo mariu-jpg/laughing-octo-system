@@ -207,7 +207,7 @@ function MiniCalendar({ tasks }) {
 }
 
 // ── TaskCard ─────────────────────────────────────────────────────────────────
-function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate }) {
+function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragStart, onDragEnter, onDragEnd, isDraggingOver }) {
   const [open,      setOpen]      = useState(false);
   const [editUrl,   setEditUrl]   = useState(task.url);
   const [editMemo,  setEditMemo]  = useState(task.memo);
@@ -240,13 +240,22 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate }) {
   };
 
   return (
-    <div style={{
-      background: task.done ? "#FAFAF8" : task.waiting ? "#F3F1FA" : P.surface,
-      borderRadius:16, flexShrink: 0, border:`1px solid ${task.waiting && !task.done ? P.lavender+"60" : P.border}`,
-      overflow:"hidden", opacity: task.done ? .45 : 1,
-      transition:"box-shadow .15s, transform .15s",
-      boxShadow:"0 2px 10px rgba(44,40,37,.05)",
-    }}>
+    <div
+      draggable={!task.done && !editing}
+      onDragStart={() => onDragStart && onDragStart(task.id)}
+      onDragEnter={() => onDragEnter && onDragEnter(task.id)}
+      onDragEnd={() => onDragEnd && onDragEnd()}
+      onDragOver={e => e.preventDefault()}
+      style={{
+        background: task.done ? "#FAFAF8" : task.waiting ? "#F3F1FA" : P.surface,
+        borderRadius:16, flexShrink: 0,
+        border:`1px solid ${isDraggingOver ? "#C9A7E8" : task.waiting && !task.done ? P.lavender+"60" : P.border}`,
+        overflow:"hidden", opacity: task.done ? .45 : 1,
+        transition:"box-shadow .15s, transform .15s, border-color .15s",
+        boxShadow: isDraggingOver ? "0 4px 20px rgba(201,167,232,.35)" : "0 2px 10px rgba(44,40,37,.05)",
+        transform: isDraggingOver ? "scale(1.01)" : "scale(1)",
+        cursor: task.done || editing ? "default" : "grab",
+      }}>
       {/* ── edit mode ── */}
       {editing ? (
         <div style={{ padding:"14px 14px 16px", animation:"slideDown .18s ease" }}>
@@ -388,6 +397,20 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate }) {
 
         {/* actions */}
         <div style={{ display:"flex", gap:1, flexShrink:0, alignItems:"center" }}>
+          {/* ドラッグハンドル */}
+          {!task.done && (
+            <div
+              title="ドラッグして並び替え"
+              style={{
+                display:"flex", flexDirection:"column", gap:2.5,
+                padding:"4px 5px", cursor:"grab", flexShrink:0, opacity:.35,
+              }}
+            >
+              {[0,1,2].map(i => (
+                <div key={i} style={{ width:14, height:1.5, borderRadius:2, background:P.inkSub }} />
+              ))}
+            </div>
+          )}
           {/* 確認依頼ボタン */}
           {!task.done && (
             <button
@@ -599,6 +622,8 @@ export default function App() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [encText,      setEncText]      = useState("");
   const [showEnc,      setShowEnc]      = useState(false);
+  const [dragId,       setDragId]       = useState(null);
+  const [hoverDragId,  setHoverDragId]  = useState(null);
 
   // 今日完了したタスクIDを管理
   const [todayDoneIds, setTodayDoneIds] = useState(() => loadDailyProgress().doneIds);
@@ -636,6 +661,19 @@ export default function App() {
   const deleteTask = id => setTasks(prev => prev.filter(t => t.id !== id));
   const updateTask = (id, patch) => setTasks(prev => prev.map(t => t.id===id ? {...t,...patch} : t));
 
+  // ドラッグ＆ドロップで並び替え
+  const reorderTasks = (dragId, hoverId) => {
+    setTasks(prev => {
+      const arr = [...prev];
+      const dragIdx  = arr.findIndex(t => t.id === dragId);
+      const hoverIdx = arr.findIndex(t => t.id === hoverId);
+      if (dragIdx < 0 || hoverIdx < 0 || dragIdx === hoverIdx) return prev;
+      const [item] = arr.splice(dragIdx, 1);
+      arr.splice(hoverIdx, 0, item);
+      return arr;
+    });
+  };
+
   // 今日の進捗（今日完了 / 全体タスク数）
   const todayDone  = todayDoneIds.filter(id => tasks.some(t => t.id === id)).length;
   const total      = tasks.length;
@@ -648,19 +686,19 @@ export default function App() {
     if (activeFilter === "waiting")
       return tasks.filter(t => !t.done && t.waiting);
     if (activeFilter === "pri_high")
-      return [...tasks.filter(t => !t.done && t.priority === "high")].sort((a,b) => priOrder[a.priority]-priOrder[b.priority]);
+      return tasks.filter(t => !t.done && t.priority === "high");
     if (activeFilter === "pri_mid")
-      return [...tasks.filter(t => !t.done && t.priority === "mid")].sort((a,b) => priOrder[a.priority]-priOrder[b.priority]);
+      return tasks.filter(t => !t.done && t.priority === "mid");
     if (activeFilter === "pri_low")
-      return [...tasks.filter(t => !t.done && t.priority === "low")].sort((a,b) => priOrder[a.priority]-priOrder[b.priority]);
+      return tasks.filter(t => !t.done && t.priority === "low");
     if (activeFilter === "deadline")
       return tasks
         .filter(t => !t.done && !!parseDeadline(t.deadline))
         .sort((a,b) => parseDeadline(a.deadline) - parseDeadline(b.deadline));
-    const base = activeFilter === "all"
-      ? tasks.filter(t => !t.done)
-      : tasks.filter(t => t.category === activeFilter && !t.done);
-    return [...base].sort((a,b) => priOrder[a.priority] - priOrder[b.priority]);
+    // "all" とカテゴリフィルターは tasks の手動順序をそのまま使う
+    if (activeFilter === "all")
+      return tasks.filter(t => !t.done);
+    return tasks.filter(t => t.category === activeFilter && !t.done);
   }, [tasks, activeFilter]);
 
   const moodMsg = pct===100 && total>0 ? "✦ 全部完了！最高！"
@@ -887,7 +925,18 @@ export default function App() {
             ) : (
               filteredTasks.map(t => (
                 <TaskCard key={t.id} task={t}
-                  onToggle={toggleTask} onToggleWaiting={toggleWaiting} onDelete={deleteTask} onUpdate={updateTask} />
+                  onToggle={toggleTask} onToggleWaiting={toggleWaiting} onDelete={deleteTask} onUpdate={updateTask}
+                  onDragStart={id => { setDragId(id); setHoverDragId(id); }}
+                  onDragEnter={id => {
+                    if (dragId !== null && id !== dragId) {
+                      reorderTasks(dragId, id);
+                      setDragId(id);
+                    }
+                    setHoverDragId(id);
+                  }}
+                  onDragEnd={() => { setDragId(null); setHoverDragId(null); }}
+                  isDraggingOver={hoverDragId === t.id && dragId !== null && dragId !== t.id}
+                />
               ))
             )}
           </div>
