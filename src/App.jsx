@@ -863,7 +863,9 @@ export default function App() {
   const [tasks, setTasks] = useState(() => {
     try {
       const saved = localStorage.getItem("taskapp-tasks");
-      return saved ? JSON.parse(saved) : INITIAL_TASKS;
+      if (!saved) return INITIAL_TASKS;
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : INITIAL_TASKS;
     } catch {
       return INITIAL_TASKS;
     }
@@ -877,17 +879,41 @@ export default function App() {
   // 今日完了したタスクIDを管理
   const [todayDoneIds, setTodayDoneIds] = useState(() => loadDailyProgress().doneIds);
 
-  // tasksが変わるたびにlocalStorageへ自動保存
+  // 初回レンダー判定（初回はlocalStorageへ書き込まない）
+  const isFirstRender = useRef(true);
+
+  // tasksが変わるたびにlocalStorageへ自動保存（初回スキップ）
   useEffect(() => {
+    if (isFirstRender.current) return;
     try {
       localStorage.setItem("taskapp-tasks", JSON.stringify(tasks));
     } catch {}
   }, [tasks]);
 
-  // todayDoneIdsが変わるたびに日次進捗を保存
+  // todayDoneIdsが変わるたびに日次進捗を保存（初回スキップ）
   useEffect(() => {
+    if (isFirstRender.current) return;
     saveDailyProgress(todayDoneIds);
   }, [todayDoneIds]);
+
+  // ── Memos ─────────────────────────────────────────────────────────────────
+  const [memos, setMemos] = useState(() => {
+    try {
+      const saved = localStorage.getItem("taskapp-memos");
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    try { localStorage.setItem("taskapp-memos", JSON.stringify(memos)); } catch {}
+  }, [memos]);
+
+  const addMemo = ({ title, body, category, color }) => {
+    setMemos(prev => [{ id:Date.now(), title, body, category, color }, ...prev]);
+  };
 
   const addTask = ({ text, category, priority, deadline }) => {
     setTasks(prev => [{ id:Date.now(), text, category, priority, deadline, done:false, waiting:false, url:"", memo:"" }, ...prev]);
@@ -898,10 +924,8 @@ export default function App() {
       const msg = ENCOURAGEMENTS[Math.floor(Math.random()*ENCOURAGEMENTS.length)];
       setEncText(msg); setShowEnc(true);
       setTimeout(() => setShowEnc(false), 2200);
-      // 今日の完了リストに追加
       setTodayDoneIds(ids => ids.includes(id) ? ids : [...ids, id]);
     } else {
-      // 未完了に戻したら今日のリストから除外
       setTodayDoneIds(ids => ids.filter(i => i !== id));
     }
     return { ...t, done:!t.done };
@@ -909,22 +933,6 @@ export default function App() {
   const toggleWaiting = id => setTasks(prev => prev.map(t => t.id===id ? {...t, waiting:!t.waiting} : t));
   const deleteTask = id => setTasks(prev => prev.filter(t => t.id !== id));
   const updateTask = (id, patch) => setTasks(prev => prev.map(t => t.id===id ? {...t,...patch} : t));
-
-  // ── Memos ─────────────────────────────────────────────────────────────────
-  const [memos, setMemos] = useState(() => {
-    try {
-      const saved = localStorage.getItem("taskapp-memos");
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
-
-  useEffect(() => {
-    try { localStorage.setItem("taskapp-memos", JSON.stringify(memos)); } catch {}
-  }, [memos]);
-
-  const addMemo = ({ title, body, category, color }) => {
-    setMemos(prev => [{ id:Date.now(), title, body, category, color }, ...prev]);
-  };
   const updateMemo = (id, patch) => setMemos(prev => prev.map(m => m.id===id ? {...m,...patch} : m));
   const deleteMemo = id => setMemos(prev => prev.filter(m => m.id !== id));
   const reorderMemos = (dragId, hoverId) => {
