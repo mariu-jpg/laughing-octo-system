@@ -1117,6 +1117,11 @@ export default function App() {
           .memo-grid {
             grid-template-columns: 1fr !important;
           }
+          .col-right-filters {
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+          }
         }
       `}</style>
 
@@ -1178,22 +1183,33 @@ export default function App() {
       {/* ══ RIGHT COLUMN ═════════════════════════════════════════════════════ */}
       <div className="col-right">
 
-        {/* filters */}
-        <div className="col-right-filters" style={{
-            display:"flex", gap:6,
-            overflowX:"auto", paddingBottom:4, scrollbarWidth:"none",
-          }}>
-            {FILTERS.map(f => (
-              <button key={f.id} onClick={() => setActiveFilter(f.id)} style={{
-                flexShrink:0, fontFamily:"'Noto Sans JP',sans-serif",
-                fontSize:12, padding:"5px 14px", borderRadius:20, cursor:"pointer",
-                border:`1.5px solid ${activeFilter===f.id ? P.ink : f.id.startsWith("pri_") && activeFilter!==f.id ? "transparent" : P.border}`,
-                background: activeFilter===f.id ? P.ink : P.surface,
-                color: activeFilter===f.id ? P.bg : f.id==="pri_high" ? P.fiesta : f.id==="pri_mid" ? P.dusty : f.id==="pri_low" ? P.inkFaint : P.inkSub,
-                whiteSpace:"nowrap", transition:"all .15s", letterSpacing:".04em",
-              }}>{f.label}</button>
-            ))}
-          </div>
+        {/* filters — 1行目: ステータス系 / 2行目: カテゴリ系 */}
+        {(() => {
+          const ROW1 = ["all","waiting","deadline","memos","pri_high","pri_mid","pri_low","done"];
+          const ROW2 = ["price","design","coding","meeting","item","contents","sales","other"];
+          const btnStyle = (f) => ({
+            flexShrink:0, fontFamily:"'Noto Sans JP',sans-serif",
+            fontSize:12, padding:"5px 14px", borderRadius:20, cursor:"pointer",
+            border:`1.5px solid ${activeFilter===f.id ? P.ink : f.id.startsWith("pri_") && activeFilter!==f.id ? "transparent" : P.border}`,
+            background: activeFilter===f.id ? P.ink : P.surface,
+            color: activeFilter===f.id ? P.bg : f.id==="pri_high" ? P.fiesta : f.id==="pri_mid" ? P.dusty : f.id==="pri_low" ? P.inkFaint : P.inkSub,
+            whiteSpace:"nowrap", transition:"all .15s", letterSpacing:".04em",
+          });
+          return (
+            <div className="col-right-filters" style={{ display:"flex", flexDirection:"column", gap:6 }}>
+              <div style={{ display:"flex", gap:6, flexWrap:"nowrap", overflowX:"auto", scrollbarWidth:"none" }}>
+                {FILTERS.filter(f => ROW1.includes(f.id)).sort((a,b) => ROW1.indexOf(a.id)-ROW1.indexOf(b.id)).map(f => (
+                  <button key={f.id} onClick={() => setActiveFilter(f.id)} style={btnStyle(f)}>{f.label}</button>
+                ))}
+              </div>
+              <div style={{ display:"flex", gap:6, flexWrap:"nowrap", overflowX:"auto", scrollbarWidth:"none" }}>
+                {FILTERS.filter(f => ROW2.includes(f.id)).sort((a,b) => ROW2.indexOf(a.id)-ROW2.indexOf(b.id)).map(f => (
+                  <button key={f.id} onClick={() => setActiveFilter(f.id)} style={btnStyle(f)}>{f.label}</button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* task list — scrollable area / memo board */}
         {activeFilter === "memos" ? (
