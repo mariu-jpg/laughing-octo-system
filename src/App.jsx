@@ -215,11 +215,12 @@ const MEMO_CATEGORIES = [
 ];
 
 const MEMO_COLORS = [
-  { id:"pink",   bg:"#FDE8F0", border:"#F2A7C3", label:"ピンク"     },
-  { id:"lav",    bg:"#EDE8F9", border:"#C9A7E8", label:"ラベンダー" },
-  { id:"sky",    bg:"#E8F2FD", border:"#A7C9F2", label:"スカイ"     },
-  { id:"mint",   bg:"#E8F7F0", border:"#A7E8C9", label:"ミント"     },
-  { id:"cream",  bg:"#FDF5E8", border:"#E8CFA7", label:"クリーム"   },
+  { id:"white",  bg:"#FFFFFF",  border:"#E8E3DD", label:"ホワイト"   },
+  { id:"pink",   bg:"#FDE8F0",  border:"#F2A7C3", label:"ピンク"     },
+  { id:"lav",    bg:"#EDE8F9",  border:"#C9A7E8", label:"ラベンダー" },
+  { id:"sky",    bg:"#E8F2FD",  border:"#A7C9F2", label:"スカイ"     },
+  { id:"mint",   bg:"#E8F7F0",  border:"#A7E8C9", label:"ミント"     },
+  { id:"cream",  bg:"#FDF5E8",  border:"#E8CFA7", label:"クリーム"   },
 ];
 
 function MemoCard({ memo, onUpdate, onDelete, onDragStart, onDragEnter, onDragEnd, isDraggingOver }) {
@@ -382,7 +383,7 @@ function MemoBoard({ memos, onAdd, onUpdate, onDelete, onReorder }) {
     : memos.filter(m => m.category === filterCat);
 
   const addMemo = () => {
-    onAdd({ title:"", body:"", category: filterCat === "all" ? "" : filterCat, color:"pink" });
+    onAdd({ title:"", body:"", category: filterCat === "all" ? "" : filterCat, color:"white" });
   };
 
   return (
