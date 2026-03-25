@@ -351,6 +351,13 @@ function MemoCard({ memo, onUpdate, onDelete, onDragStart, onDragEnter, onDragEn
           )}
         </div>
         <div style={{ display:"flex", gap:2, flexShrink:0 }}>
+          <button onClick={() => onUpdate(memo.id, { archived: !memo.archived })}
+            title={memo.archived ? "アーカイブ解除" : "アーカイブ"}
+            style={{
+              background:"none", border:"none", cursor:"pointer",
+              color: memo.archived ? P.saffron : P.inkFaint,
+              fontSize:13, padding:"2px 4px", borderRadius:6, lineHeight:1,
+            }}>◫</button>
           <button onClick={() => setEditing(true)} style={{
             background:"none", border:"none", cursor:"pointer", color:P.inkFaint,
             fontSize:13, padding:"2px 4px", borderRadius:6, lineHeight:1,
@@ -362,52 +369,127 @@ function MemoCard({ memo, onUpdate, onDelete, onDragStart, onDragEnter, onDragEn
         </div>
       </div>
       {/* footer */}
-      {cat && (
-        <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
+        {memo.archived && (
+          <span style={{
+            fontSize:10, padding:"1px 7px", borderRadius:6,
+            background:P.saffronBg, color:P.saffron,
+            border:`1px solid ${P.saffron}40`,
+          }}>◫ アーカイブ済み</span>
+        )}
+        {cat && (
           <span style={{ fontSize:10, padding:"1px 7px", borderRadius:6, background:cat.bg, color:cat.color }}>
             {cat.emoji} {cat.label}
           </span>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
 function MemoBoard({ memos, onAdd, onUpdate, onDelete, onReorder }) {
-  const [filterCat, setFilterCat] = useState("all");
-  const [dragId,    setDragId]    = useState(null);
+  const [filterCat,  setFilterCat]  = useState("all");
+  const [showArchive, setShowArchive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dragId,      setDragId]      = useState(null);
   const [hoverDragId, setHoverDragId] = useState(null);
 
-  const filtered = filterCat === "all"
-    ? memos
-    : memos.filter(m => m.category === filterCat);
-
   const addMemo = () => {
-    onAdd({ title:"", body:"", category: filterCat === "all" ? "" : filterCat, color:"white" });
+    onAdd({ title:"", body:"", category: filterCat === "all" ? "" : filterCat, color:"white", archived:false });
   };
 
+  const activeMemos   = memos.filter(m => !m.archived);
+  const archivedMemos = memos.filter(m => m.archived);
+  const baseList = showArchive ? archivedMemos : activeMemos;
+
+  const filtered = useMemo(() => {
+    let list = filterCat === "all" ? baseList : baseList.filter(m => m.category === filterCat);
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter(m =>
+        (m.title||"").toLowerCase().includes(q) ||
+        (m.body||"").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [baseList, filterCat, searchQuery]);
+
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:12, height:"100%" }}>
-      {/* sub-filter bar */}
-      <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", flexShrink:0 }}>
-        {MEMO_CATEGORIES.map(c => (
-          <button key={c.id} onClick={() => setFilterCat(c.id)} style={{
-            fontFamily:"inherit", fontSize:11, padding:"4px 12px", borderRadius:16, cursor:"pointer",
-            border:`1.5px solid ${filterCat===c.id ? (c.color||P.ink) : P.border}`,
-            background: filterCat===c.id ? (c.bg||P.ink) : P.surface,
-            color: filterCat===c.id ? (c.color||P.bg) : P.inkSub,
-            whiteSpace:"nowrap", transition:"all .15s",
-          }}>{c.emoji ? `${c.emoji} ` : ""}{c.label}</button>
-        ))}
-        <button onClick={addMemo} style={{
-          marginLeft:"auto", fontFamily:"inherit", fontSize:11,
-          padding:"4px 14px", borderRadius:16, cursor:"pointer",
-          background:P.ink, color:P.bg, border:"none",
-          letterSpacing:".04em", whiteSpace:"nowrap",
-        }}>＋ メモを追加</button>
+    <div style={{ display:"flex", flexDirection:"column", gap:10, height:"100%" }}>
+
+      {/* ── ツールバー ── */}
+      <div style={{ display:"flex", flexDirection:"column", gap:8, flexShrink:0 }}>
+
+        {/* 1段目：検索 + 追加ボタン + アーカイブ切替 */}
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          {/* 検索 */}
+          <div style={{ flex:1, position:"relative" }}>
+            <span style={{
+              position:"absolute", left:10, top:"50%", transform:"translateY(-50%)",
+              fontSize:13, color:P.inkFaint, pointerEvents:"none",
+            }}>🔍</span>
+            <input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="メモを検索..."
+              style={{
+                width:"100%", paddingLeft:30, paddingRight: searchQuery ? 28 : 10,
+                paddingTop:6, paddingBottom:6,
+                border:`1.5px solid ${searchQuery ? P.lavender : P.border}`,
+                borderRadius:20, fontFamily:"inherit", fontSize:12,
+                color:P.ink, background:P.surface, outline:"none",
+                transition:"border-color .15s",
+              }}
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery("")} style={{
+                position:"absolute", right:8, top:"50%", transform:"translateY(-50%)",
+                background:"none", border:"none", cursor:"pointer",
+                color:P.inkFaint, fontSize:14, lineHeight:1, padding:0,
+              }}>×</button>
+            )}
+          </div>
+          {/* アーカイブ切替 */}
+          <button onClick={() => setShowArchive(v => !v)} style={{
+            fontFamily:"inherit", fontSize:11, padding:"6px 12px", borderRadius:16, cursor:"pointer",
+            border:`1.5px solid ${showArchive ? P.saffron : P.border}`,
+            background: showArchive ? P.saffronBg : P.surface,
+            color: showArchive ? P.saffron : P.inkSub,
+            whiteSpace:"nowrap", transition:"all .15s", flexShrink:0,
+          }}>
+            ◫ {showArchive ? `アーカイブ (${archivedMemos.length})` : `アーカイブを見る (${archivedMemos.length})`}
+          </button>
+          {/* 追加ボタン（アーカイブ表示中は非表示） */}
+          {!showArchive && (
+            <button onClick={addMemo} style={{
+              fontFamily:"inherit", fontSize:11, padding:"6px 14px", borderRadius:16, cursor:"pointer",
+              background:P.ink, color:P.bg, border:"none",
+              letterSpacing:".04em", whiteSpace:"nowrap", flexShrink:0,
+            }}>＋ メモを追加</button>
+          )}
+        </div>
+
+        {/* 2段目：カテゴリフィルター */}
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
+          {MEMO_CATEGORIES.map(c => (
+            <button key={c.id} onClick={() => setFilterCat(c.id)} style={{
+              fontFamily:"inherit", fontSize:11, padding:"4px 12px", borderRadius:16, cursor:"pointer",
+              border:`1.5px solid ${filterCat===c.id ? (c.color||P.ink) : P.border}`,
+              background: filterCat===c.id ? (c.bg||P.ink) : P.surface,
+              color: filterCat===c.id ? (c.color||P.bg) : P.inkSub,
+              whiteSpace:"nowrap", transition:"all .15s",
+            }}>{c.emoji ? `${c.emoji} ` : ""}{c.label}</button>
+          ))}
+          {/* 検索ヒット件数 */}
+          {searchQuery.trim() && (
+            <span style={{ fontSize:11, color:P.inkFaint, marginLeft:4 }}>
+              {filtered.length} 件ヒット
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* memo grid — 3 columns on PC */}
+      {/* ── メモグリッド ── */}
       <div style={{
         flex:1, minHeight:0, overflowY:"auto",
         display:"grid",
@@ -427,8 +509,14 @@ function MemoBoard({ memos, onAdd, onUpdate, onDelete, onReorder }) {
             color:P.inkFaint, fontSize:13, lineHeight:2.4, textAlign:"center",
             minHeight:200,
           }}>
-            <div style={{ fontSize:28, opacity:.4, marginBottom:8 }}>📋</div>
-            メモがまだありません。<br/>右上の「＋ メモを追加」から作成できます。
+            <div style={{ fontSize:28, opacity:.4, marginBottom:8 }}>
+              {searchQuery ? "🔍" : showArchive ? "◫" : "📋"}
+            </div>
+            {searchQuery
+              ? `「${searchQuery}」に一致するメモはありません`
+              : showArchive
+              ? "アーカイブされたメモはありません"
+              : "メモがまだありません。「＋ メモを追加」から作成できます。"}
           </div>
         ) : (
           filtered.map(m => (
