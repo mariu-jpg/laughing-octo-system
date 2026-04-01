@@ -1112,7 +1112,7 @@ export default function App() {
     if (activeFilter === "all")
       return tasks.filter(t => !t.done);
     return tasks.filter(t => t.category === activeFilter && !t.done);
-  }, [tasks, activeFilter]);
+  }, [tasks, activeFilter, doneSubFilter]);
 
   const moodMsg = pct===100 && total>0 ? "✦ 全部完了！最高！"
     : pct>=50 ? "◈ いい調子！"
