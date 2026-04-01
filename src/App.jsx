@@ -80,6 +80,26 @@ function localToday() {
   return new Date(t.getFullYear(), t.getMonth(), t.getDate(), 0, 0, 0, 0);
 }
 
+// 指定日が属する週の月曜0時を返す
+function weekStart(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun
+  const diff = day === 0 ? -6 : 1 - day; // 月曜起算
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function getWeekLabel(ts) {
+  if (!ts) return "不明";
+  const thisWeekStart = weekStart(localToday());
+  const lastWeekStart = new Date(thisWeekStart); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+  const d = new Date(ts);
+  if (d >= thisWeekStart) return "today";
+  if (d >= lastWeekStart) return "lastweek";
+  return "older";
+}
+
 function deadlineChip(str) {
   const d = parseDeadline(str);
   if (!d) return null;
@@ -968,6 +988,7 @@ export default function App() {
   const [showEnc,      setShowEnc]      = useState(false);
   const [dragId,       setDragId]       = useState(null);
   const [hoverDragId,  setHoverDragId]  = useState(null);
+  const [doneSubFilter, setDoneSubFilter] = useState("all"); // "all"|"lastweek"|"older"
 
   // 今日完了したタスクIDを管理
   const [todayDoneIds, setTodayDoneIds] = useState(() => loadDailyProgress().doneIds);
@@ -1018,10 +1039,11 @@ export default function App() {
       setEncText(msg); setShowEnc(true);
       setTimeout(() => setShowEnc(false), 2200);
       setTodayDoneIds(ids => ids.includes(id) ? ids : [...ids, id]);
+      return { ...t, done:true, completedAt: Date.now() };
     } else {
       setTodayDoneIds(ids => ids.filter(i => i !== id));
+      return { ...t, done:false, completedAt: null };
     }
-    return { ...t, done:!t.done };
   }));
   const toggleWaiting = id => setTasks(prev => prev.map(t => t.id===id ? {...t, waiting:!t.waiting} : t));
   const deleteTask = id => setTasks(prev => prev.filter(t => t.id !== id));
@@ -1060,8 +1082,20 @@ export default function App() {
   const pct        = total === 0 ? 0 : Math.round((todayDone / total) * 100);
 
   const filteredTasks = useMemo(() => {
-    if (activeFilter === "done")
-      return tasks.filter(t => t.done);
+    if (activeFilter === "done") {
+      const doneTasks = tasks.filter(t => t.done);
+      if (doneSubFilter === "lastweek")
+        return [...doneTasks].filter(t => getWeekLabel(t.completedAt) === "lastweek")
+          .sort((a,b) => (b.completedAt||0) - (a.completedAt||0));
+      if (doneSubFilter === "thisweek")
+        return [...doneTasks].filter(t => getWeekLabel(t.completedAt) === "today")
+          .sort((a,b) => (b.completedAt||0) - (a.completedAt||0));
+      if (doneSubFilter === "older")
+        return [...doneTasks].filter(t => getWeekLabel(t.completedAt) === "older")
+          .sort((a,b) => (b.completedAt||0) - (a.completedAt||0));
+      // "all" → 新しい順
+      return [...doneTasks].sort((a,b) => (b.completedAt||0) - (a.completedAt||0));
+    }
     if (activeFilter === "waiting")
       return tasks.filter(t => !t.done && t.waiting);
     if (activeFilter === "pri_high")
@@ -1288,14 +1322,40 @@ export default function App() {
             <div className="col-right-filters" style={{ display:"flex", flexDirection:"column", gap:6 }}>
               <div style={{ display:"flex", gap:6, flexWrap:"nowrap", overflowX:"auto", scrollbarWidth:"none" }}>
                 {FILTERS.filter(f => ROW1.includes(f.id)).sort((a,b) => ROW1.indexOf(a.id)-ROW1.indexOf(b.id)).map(f => (
-                  <button key={f.id} onClick={() => setActiveFilter(f.id)} style={btnStyle(f)}>{f.label}</button>
+                  <button key={f.id} onClick={() => { setActiveFilter(f.id); if(f.id !== "done") setDoneSubFilter("all"); }} style={btnStyle(f)}>{f.label}</button>
                 ))}
               </div>
               <div style={{ display:"flex", gap:6, flexWrap:"nowrap", overflowX:"auto", scrollbarWidth:"none" }}>
                 {FILTERS.filter(f => ROW2.includes(f.id)).sort((a,b) => ROW2.indexOf(a.id)-ROW2.indexOf(b.id)).map(f => (
-                  <button key={f.id} onClick={() => setActiveFilter(f.id)} style={btnStyle(f)}>{f.label}</button>
+                  <button key={f.id} onClick={() => { setActiveFilter(f.id); if(f.id !== "done") setDoneSubFilter("all"); }} style={btnStyle(f)}>{f.label}</button>
                 ))}
               </div>
+            </div>
+          );
+        })()}
+
+        {/* 完了済みサブフィルター */}
+        {activeFilter === "done" && (() => {
+          const thisWeekCount = tasks.filter(t => t.done && getWeekLabel(t.completedAt) === "today").length;
+          const lastWeekCount = tasks.filter(t => t.done && getWeekLabel(t.completedAt) === "lastweek").length;
+          const olderCount    = tasks.filter(t => t.done && getWeekLabel(t.completedAt) === "older").length;
+          const subs = [
+            { id:"all",      label:`すべて (${tasks.filter(t=>t.done).length})` },
+            { id:"thisweek", label:`今週 (${thisWeekCount})`  },
+            { id:"lastweek", label:`先週 (${lastWeekCount})`  },
+            { id:"older",    label:`それ以前 (${olderCount})` },
+          ];
+          return (
+            <div style={{ display:"flex", gap:6, flexShrink:0, paddingBottom:8, flexWrap:"wrap" }}>
+              {subs.map(s => (
+                <button key={s.id} onClick={() => setDoneSubFilter(s.id)} style={{
+                  fontFamily:"inherit", fontSize:11, padding:"4px 12px", borderRadius:14, cursor:"pointer",
+                  border:`1.5px solid ${doneSubFilter===s.id ? P.dusty : P.border}`,
+                  background: doneSubFilter===s.id ? P.dustyBg : P.surface,
+                  color: doneSubFilter===s.id ? P.dusty : P.inkSub,
+                  whiteSpace:"nowrap", transition:"all .15s",
+                }}>{s.label}</button>
+              ))}
             </div>
           );
         })()}
