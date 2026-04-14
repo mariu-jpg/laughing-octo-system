@@ -1062,7 +1062,43 @@ export default function App() {
     });
   };
 
-  // ドラッグ＆ドロップで並び替え
+  // ── バックアップ / 復元 ───────────────────────────────────────────────────
+  const exportData = () => {
+    const data = { version:1, exportedAt: new Date().toISOString(), tasks, memos };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type:"application/json" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    const date = new Date().toLocaleDateString("ja-JP",{year:"2-digit",month:"2-digit",day:"2-digit"}).replace(/\//g,"");
+    a.href     = url;
+    a.download = `taskapp-backup-${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!data.tasks || !Array.isArray(data.tasks)) {
+          alert("ファイルの形式が正しくありません。");
+          return;
+        }
+        if (!window.confirm(`タスク ${data.tasks.length} 件・メモ ${(data.memos||[]).length} 件を復元します。\n現在のデータは上書きされます。よろしいですか？`)) return;
+        setTasks(data.tasks);
+        setMemos(data.memos || []);
+        alert("復元が完了しました！");
+      } catch {
+        alert("ファイルの読み込みに失敗しました。");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ""; // 同じファイルを再選択できるようリセット
+  };
+
+
   const reorderTasks = (dragId, hoverId) => {
     setTasks(prev => {
       const arr = [...prev];
@@ -1300,6 +1336,41 @@ export default function App() {
 
           {/* add form */}
           <AddTaskForm onAdd={addTask} />
+
+          {/* backup / restore */}
+          <div style={{
+            background:P.surface, borderRadius:18, padding:"14px 16px",
+            border:`1px solid ${P.border}`,
+          }}>
+            <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".12em", textTransform:"uppercase", marginBottom:10 }}>
+              データ管理
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {/* エクスポート */}
+              <button onClick={exportData} style={{
+                width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                background:P.bg, border:`1.5px solid ${P.border}`, borderRadius:12,
+                padding:"9px", fontFamily:"inherit", fontSize:12, color:P.inkSub,
+                cursor:"pointer", letterSpacing:".04em", transition:"all .15s",
+              }}>
+                ↓ バックアップを保存
+              </button>
+              {/* インポート */}
+              <label style={{
+                width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                background:P.bg, border:`1.5px solid ${P.border}`, borderRadius:12,
+                padding:"9px", fontFamily:"inherit", fontSize:12, color:P.inkSub,
+                cursor:"pointer", letterSpacing:".04em", transition:"all .15s",
+                boxSizing:"border-box",
+              }}>
+                ↑ バックアップから復元
+                <input type="file" accept=".json" onChange={importData} style={{ display:"none" }} />
+              </label>
+            </div>
+            <div style={{ fontSize:10, color:P.inkFaint, marginTop:8, lineHeight:1.6 }}>
+              キャッシュ削除前に「保存」を押しておくと安心です
+            </div>
+          </div>
 
       </div>
 
