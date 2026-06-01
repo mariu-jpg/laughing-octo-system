@@ -937,12 +937,13 @@ function ChatworkReminderForm() {
     }
   };
 
-  return (
-    <div style={{
-      marginTop:12,
-      paddingTop:12,
-      borderTop:`1px solid ${P.border}`,
-    }}>
+return (
+  <div style={{
+    background:P.surface,
+    borderRadius:20,
+    border:`1px solid ${P.border}`,
+    padding:"14px 16px",
+  }}>
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
@@ -1193,7 +1194,6 @@ function AddTaskForm({ onAdd }) {
   transition:"opacity .15s, transform .1s",
 }}>追加する ＋</button>
 
-<ChatworkReminderForm />
     </div>
   );
 }
@@ -1581,6 +1581,9 @@ export default function App() {
 
           {/* calendar */}
           <MiniCalendar tasks={tasks} />
+
+        {/* chatwork reminder */}
+          <ChatworkReminderForm />
 
           {/* add form */}
           <AddTaskForm onAdd={addTask} />
