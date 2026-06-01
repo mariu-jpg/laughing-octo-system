@@ -50,6 +50,9 @@ const INITIAL_TASKS = [
   { id:4, text:"カート実装",              category:"coding",  done:false, waiting:false, priority:"mid",  deadline:"25/06/20", url:"https://github.com",  memo:""         },
 ];
 
+// Chatwork送信予約用：GASのウェブアプリURL
+const CHATWORK_REMINDER_GAS_URL = "https://script.google.com/macros/s/AKfycbyBN7f2sgmYXRZq27YJchsN_HhPRF7_a-c99q3VjTTa49QXbUTyjnvSBW9fsDc3UEYU/exec";
+
 // ── Date helpers ─────────────────────────────────────────────────────────────
 // Parse "yy/mm/dd" or "yymmdd" → Date at local midnight (no timezone shift)
 function parseDeadline(str) {
@@ -858,6 +861,249 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragS
   );
 }
 
+// ── Chatwork Reminder Form ──────────────────────────────────────────────────
+function ChatworkReminderForm() {
+  const [open, setOpen] = useState(false);
+  const [sendDate, setSendDate] = useState("");
+  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState({ type: "", text: "" });
+  const [sending, setSending] = useState(false);
+
+  const today = localToday();
+  const minDate = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
+
+  const previewMessage = message.trim() || "リマインド内容がここに表示されます。";
+
+  const handleSubmit = async () => {
+    setStatus({ type: "", text: "" });
+
+    if (!CHATWORK_REMINDER_GAS_URL || CHATWORK_REMINDER_GAS_URL === "ここにGASのウェブアプリURLを入れる") {
+      setStatus({ type: "error", text: "GASのウェブアプリURLが未設定です。" });
+      return;
+    }
+
+    if (!sendDate) {
+      setStatus({ type: "error", text: "送信日を選択してください。" });
+      return;
+    }
+
+    if (!message.trim()) {
+      setStatus({ type: "error", text: "リマインド内容を入力してください。" });
+      return;
+    }
+
+    const scheduledAt = new Date(`${sendDate}T10:00:00`);
+    const now = new Date();
+
+    if (scheduledAt.getTime() <= now.getTime()) {
+      setStatus({ type: "error", text: "指定日の10:00を過ぎているため、翌日以降を選択してください。" });
+      return;
+    }
+
+    setSending(true);
+
+    try {
+      const params = new URLSearchParams();
+      params.append("sendDate", sendDate);
+      params.append("message", message.trim());
+
+      // GASはCORSで詰まりやすいため、レスポンスを読まない no-cors で送信します
+      await fetch(CHATWORK_REMINDER_GAS_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        },
+        body: params.toString(),
+      });
+
+      setStatus({
+        type: "success",
+        text: "送信予約を受け付けました。指定日の10:00にChatworkへ送信されます。",
+      });
+      setSendDate("");
+      setMessage("");
+    } catch (error) {
+      setStatus({
+        type: "error",
+        text: "送信予約に失敗しました。GASのURLやデプロイ設定を確認してください。",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{
+      marginTop:12,
+      paddingTop:12,
+      borderTop:`1px solid ${P.border}`,
+    }}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        style={{
+          width:"100%",
+          background: open ? P.lavBg : P.bg,
+          color: open ? P.lavender : P.inkSub,
+          border:`1.5px solid ${open ? P.lavender : P.border}`,
+          padding:"10px",
+          borderRadius:14,
+          fontFamily:"inherit",
+          fontSize:12,
+          cursor:"pointer",
+          letterSpacing:".04em",
+          transition:"all .15s",
+        }}
+      >
+        Chatworkで送信予約 {open ? "▲" : "▼"}
+      </button>
+
+      {open && (
+        <div style={{
+          marginTop:10,
+          padding:"12px",
+          borderRadius:14,
+          background:"#FDFCFB",
+          border:`1px solid ${P.border}`,
+          animation:"slideDown .18s ease",
+        }}>
+          <div style={{
+            fontSize:10,
+            color:P.inkFaint,
+            letterSpacing:".1em",
+            textTransform:"uppercase",
+            marginBottom:7,
+          }}>
+            送信日
+          </div>
+
+          <input
+            type="date"
+            value={sendDate}
+            min={minDate}
+            onChange={e => setSendDate(e.target.value)}
+            style={{
+              width:"100%",
+              border:`1.5px solid ${P.border}`,
+              borderRadius:10,
+              padding:"7px 10px",
+              fontFamily:"inherit",
+              fontSize:12,
+              color:P.ink,
+              background:P.surface,
+              outline:"none",
+              marginBottom:10,
+            }}
+          />
+
+          <div style={{
+            fontSize:10,
+            color:P.inkFaint,
+            letterSpacing:".1em",
+            textTransform:"uppercase",
+            marginBottom:7,
+          }}>
+            リマインド内容
+          </div>
+
+          <textarea
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            rows={4}
+            placeholder="例：買い時カレンダーの更新内容を確認する"
+            style={{
+              width:"100%",
+              border:`1.5px solid ${P.border}`,
+              borderRadius:10,
+              padding:"8px 10px",
+              fontFamily:"inherit",
+              fontSize:12,
+              color:P.ink,
+              background:P.surface,
+              outline:"none",
+              resize:"vertical",
+              lineHeight:1.7,
+              marginBottom:10,
+            }}
+          />
+
+          <div style={{
+            padding:"10px",
+            borderRadius:12,
+            background:P.bg,
+            border:`1px dashed ${P.inkFaint}`,
+            marginBottom:10,
+          }}>
+            <div style={{
+              fontSize:10,
+              color:P.inkFaint,
+              letterSpacing:".08em",
+              marginBottom:5,
+            }}>
+              送信イメージ
+            </div>
+            <div style={{
+              fontSize:12,
+              color:P.inkSub,
+              lineHeight:1.7,
+              whiteSpace:"pre-wrap",
+              wordBreak:"break-word",
+            }}>
+              【BOT送信】{"\n\n"}{previewMessage}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={sending}
+            style={{
+              width:"100%",
+              background: sending ? P.inkFaint : P.lavender,
+              color:"white",
+              border:"none",
+              padding:"10px",
+              borderRadius:14,
+              fontFamily:"inherit",
+              fontSize:12,
+              cursor: sending ? "not-allowed" : "pointer",
+              letterSpacing:".04em",
+              transition:"opacity .15s",
+            }}
+          >
+            {sending ? "予約中..." : "10:00に送信予約する"}
+          </button>
+
+          {status.text && (
+            <div style={{
+              marginTop:9,
+              fontSize:11,
+              lineHeight:1.6,
+              color: status.type === "success" ? P.sage : P.fiesta,
+            }}>
+              {status.text}
+            </div>
+          )}
+
+          <div style={{
+            marginTop:8,
+            fontSize:10,
+            color:P.inkFaint,
+            lineHeight:1.6,
+          }}>
+            ※送信時間は10:00固定です。送信先はGAS側で設定します。
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Add Task Form ─────────────────────────────────────────────────────────────
 function AddTaskForm({ onAdd }) {
   const [text,   setText]   = useState("");
@@ -939,13 +1185,15 @@ function AddTaskForm({ onAdd }) {
         )}
       </div>
 
-      <button onClick={handleAdd} disabled={!text.trim()} style={{
-        width:"100%", background: text.trim() ? P.fiesta : P.inkFaint,
-        color:"white", border:"none", padding:"11px", borderRadius:14,
-        fontFamily:"inherit", fontSize:13, cursor: text.trim() ? "pointer" : "not-allowed",
-        letterSpacing:".06em", fontWeight:500,
-        transition:"opacity .15s, transform .1s",
-      }}>追加する ＋</button>
+<button onClick={handleAdd} disabled={!text.trim()} style={{
+  width:"100%", background: text.trim() ? P.fiesta : P.inkFaint,
+  color:"white", border:"none", padding:"11px", borderRadius:14,
+  fontFamily:"inherit", fontSize:13, cursor: text.trim() ? "pointer" : "not-allowed",
+  letterSpacing:".06em", fontWeight:500,
+  transition:"opacity .15s, transform .1s",
+}}>追加する ＋</button>
+
+<ChatworkReminderForm />
     </div>
   );
 }
