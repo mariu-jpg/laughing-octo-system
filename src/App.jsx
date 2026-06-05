@@ -865,6 +865,8 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragS
 function ChatworkReminderForm() {
   const [open, setOpen] = useState(false);
   const [sendDate, setSendDate] = useState("");
+  const [timeMode, setTimeMode] = useState("fixed"); // fixed | custom
+  const [sendTime, setSendTime] = useState("10:00");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState({ type: "", text: "" });
   const [sending, setSending] = useState(false);
@@ -876,12 +878,12 @@ function ChatworkReminderForm() {
     String(today.getDate()).padStart(2, "0"),
   ].join("-");
 
-  const previewMessage = message.trim() || "リマインド内容がここに表示されます。";
+  const selectedTime = timeMode === "fixed" ? "10:00" : sendTime;
 
   const handleSubmit = async () => {
     setStatus({ type: "", text: "" });
 
-    if (!CHATWORK_REMINDER_GAS_URL || CHATWORK_REMINDER_GAS_URL === "ここにGASのウェブアプリURLを入れる") {
+    if (!CHATWORK_REMINDER_GAS_URL || CHATWORK_REMINDER_GAS_URL === "https://script.google.com/macros/s/AKfycbyBN7f2sgmYXRZq27YJchsN_HhPRF7_a-c99q3VjTTa49QXbUTyjnvSBW9fsDc3UEYU/exec") {
       setStatus({ type: "error", text: "GASのウェブアプリURLが未設定です。" });
       return;
     }
@@ -891,16 +893,24 @@ function ChatworkReminderForm() {
       return;
     }
 
+    if (!selectedTime) {
+      setStatus({ type: "error", text: "送信時間を選択してください。" });
+      return;
+    }
+
     if (!message.trim()) {
       setStatus({ type: "error", text: "リマインド内容を入力してください。" });
       return;
     }
 
-    const scheduledAt = new Date(`${sendDate}T10:00:00`);
+    const scheduledAt = new Date(`${sendDate}T${selectedTime}:00`);
     const now = new Date();
 
     if (scheduledAt.getTime() <= now.getTime()) {
-      setStatus({ type: "error", text: "指定日の10:00を過ぎているため、翌日以降を選択してください。" });
+      setStatus({
+        type: "error",
+        text: "指定した日時がすでに過ぎているため、未来の日時を選択してください。",
+      });
       return;
     }
 
@@ -909,6 +919,7 @@ function ChatworkReminderForm() {
     try {
       const params = new URLSearchParams();
       params.append("sendDate", sendDate);
+      params.append("sendTime", selectedTime);
       params.append("message", message.trim());
 
       // GASはCORSで詰まりやすいため、レスポンスを読まない no-cors で送信します
@@ -923,9 +934,12 @@ function ChatworkReminderForm() {
 
       setStatus({
         type: "success",
-        text: "送信予約を受け付けました。指定日の10:00にChatworkへ送信されます。",
+        text: `${sendDate} ${selectedTime} の送信予約を受け付けました。`,
       });
+
       setSendDate("");
+      setTimeMode("fixed");
+      setSendTime("10:00");
       setMessage("");
     } catch (error) {
       setStatus({
@@ -937,13 +951,13 @@ function ChatworkReminderForm() {
     }
   };
 
-return (
-  <div style={{
-    background:P.surface,
-    borderRadius:20,
-    border:`1px solid ${P.border}`,
-    padding:"14px 16px",
-  }}>
+  return (
+    <div style={{
+      background:P.surface,
+      borderRadius:20,
+      border:`1px solid ${P.border}`,
+      padding:"14px 16px",
+    }}>
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
@@ -998,9 +1012,84 @@ return (
               color:P.ink,
               background:P.surface,
               outline:"none",
-              marginBottom:10,
+              marginBottom:12,
             }}
           />
+
+          <div style={{
+            fontSize:10,
+            color:P.inkFaint,
+            letterSpacing:".1em",
+            textTransform:"uppercase",
+            marginBottom:7,
+          }}>
+            送信時間
+          </div>
+
+          <div style={{
+            display:"flex",
+            gap:8,
+            marginBottom:12,
+          }}>
+            <button
+              type="button"
+              onClick={() => {
+                setTimeMode("fixed");
+                setSendTime("10:00");
+              }}
+              style={{
+                flex:1,
+                background: timeMode === "fixed" ? P.lavBg : P.surface,
+                color: timeMode === "fixed" ? P.lavender : P.inkSub,
+                border:`1.5px solid ${timeMode === "fixed" ? P.lavender : P.border}`,
+                padding:"8px",
+                borderRadius:12,
+                fontFamily:"inherit",
+                fontSize:12,
+                cursor:"pointer",
+              }}
+            >
+              10:00に予約
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTimeMode("custom")}
+              style={{
+                flex:1,
+                background: timeMode === "custom" ? P.lavBg : P.surface,
+                color: timeMode === "custom" ? P.lavender : P.inkSub,
+                border:`1.5px solid ${timeMode === "custom" ? P.lavender : P.border}`,
+                padding:"8px",
+                borderRadius:12,
+                fontFamily:"inherit",
+                fontSize:12,
+                cursor:"pointer",
+              }}
+            >
+              任意の時間
+            </button>
+          </div>
+
+          {timeMode === "custom" && (
+            <input
+              type="time"
+              value={sendTime}
+              onChange={e => setSendTime(e.target.value)}
+              style={{
+                width:"100%",
+                border:`1.5px solid ${P.border}`,
+                borderRadius:10,
+                padding:"7px 10px",
+                fontFamily:"inherit",
+                fontSize:12,
+                color:P.ink,
+                background:P.surface,
+                outline:"none",
+                marginBottom:12,
+              }}
+            />
+          )}
 
           <div style={{
             fontSize:10,
@@ -1033,32 +1122,6 @@ return (
             }}
           />
 
-          <div style={{
-            padding:"10px",
-            borderRadius:12,
-            background:P.bg,
-            border:`1px dashed ${P.inkFaint}`,
-            marginBottom:10,
-          }}>
-            <div style={{
-              fontSize:10,
-              color:P.inkFaint,
-              letterSpacing:".08em",
-              marginBottom:5,
-            }}>
-              送信イメージ
-            </div>
-            <div style={{
-              fontSize:12,
-              color:P.inkSub,
-              lineHeight:1.7,
-              whiteSpace:"pre-wrap",
-              wordBreak:"break-word",
-            }}>
-              【BOT送信】{"\n\n"}{previewMessage}
-            </div>
-          </div>
-
           <button
             type="button"
             onClick={handleSubmit}
@@ -1077,7 +1140,7 @@ return (
               transition:"opacity .15s",
             }}
           >
-            {sending ? "予約中..." : "10:00に送信予約する"}
+            {sending ? "予約中..." : `${selectedTime}に送信予約する`}
           </button>
 
           {status.text && (
@@ -1097,7 +1160,7 @@ return (
             color:P.inkFaint,
             lineHeight:1.6,
           }}>
-            ※送信時間は10:00固定です。送信先はGAS側で設定します。
+            ※送信先はGAS側で設定します。
           </div>
         </div>
       )}
