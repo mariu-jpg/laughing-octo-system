@@ -883,10 +883,10 @@ function ChatworkReminderForm() {
   const handleSubmit = async () => {
     setStatus({ type: "", text: "" });
 
-    if (!CHATWORK_REMINDER_GAS_URL || CHATWORK_REMINDER_GAS_URL === "https://script.google.com/macros/s/AKfycbyBN7f2sgmYXRZq27YJchsN_HhPRF7_a-c99q3VjTTa49QXbUTyjnvSBW9fsDc3UEYU/exec") {
-      setStatus({ type: "error", text: "GASのウェブアプリURLが未設定です。" });
-      return;
-    }
+    if (!CHATWORK_REMINDER_GAS_URL) {
+  setStatus({ type: "error", text: "GASのウェブアプリURLが未設定です。" });
+  return;
+}
 
     if (!sendDate) {
       setStatus({ type: "error", text: "送信日を選択してください。" });
@@ -1105,7 +1105,7 @@ function ChatworkReminderForm() {
             value={message}
             onChange={e => setMessage(e.target.value)}
             rows={4}
-            placeholder="例：買い時カレンダーの更新内容を確認する"
+            placeholder="ここに入力"
             style={{
               width:"100%",
               border:`1.5px solid ${P.border}`,
