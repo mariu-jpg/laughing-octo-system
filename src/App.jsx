@@ -78,6 +78,162 @@ function fmtDlInput(raw) {
   return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4)}`;
 }
 
+
+// ── CSV task import helpers ──────────────────────────────────────────────────
+// 対応列：タスク名（必須）/ カテゴリ / 優先度 / 期限 / 確認待ち / 完了 / URL / メモ
+const CSV_FIELD_ALIASES = {
+  text:     ["タスク名", "タスク", "内容", "タイトル", "text", "task", "title"],
+  category: ["カテゴリ", "カテゴリー", "category"],
+  priority: ["優先度", "priority"],
+  deadline: ["期限", "締切", "締切日", "〆切", "〆切日", "deadline", "due"],
+  waiting:  ["確認待ち", "待ち", "waiting"],
+  done:     ["完了", "完了済み", "完了済", "done", "status"],
+  url:      ["url", "リンク", "link"],
+  memo:     ["メモ", "備考", "詳細", "memo", "note"],
+};
+
+// ダブルクォーテーション、カンマ、セル内改行に対応したCSVパーサー
+function parseCsvRows(text) {
+  const rows = [];
+  const source = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (source[i + 1] === '"') {
+          cell += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      row.push(cell);
+      cell = "";
+    } else if (char === "\n") {
+      row.push(cell);
+      if (row.some(value => String(value).trim() !== "")) rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+
+  row.push(cell);
+  if (row.some(value => String(value).trim() !== "")) rows.push(row);
+  return rows;
+}
+
+function normalizeCsvHeader(value) {
+  return String(value ?? "")
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s　_\-]/g, "");
+}
+
+function getCsvValue(record, field) {
+  const aliases = CSV_FIELD_ALIASES[field] || [];
+  for (const alias of aliases) {
+    const value = record[normalizeCsvHeader(alias)];
+    if (value !== undefined) return value;
+  }
+  return "";
+}
+
+// "26/07/10" / "2026-07-10" / "260710" / "20260710" をアプリ用の "yy/mm/dd" に統一
+function normalizeCsvDeadline(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+
+  let formatted = "";
+  const separated = raw.match(/^(\d{2,4})\s*[\/.\-年]\s*(\d{1,2})\s*[\/.\-月]\s*(\d{1,2})\s*日?$/);
+
+  if (separated) {
+    const [, year, month, day] = separated;
+    const yy = year.length === 4 ? year.slice(-2) : year.padStart(2, "0");
+    formatted = `${yy}/${month.padStart(2, "0")}/${day.padStart(2, "0")}`;
+  } else {
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length === 6) {
+      formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 6)}`;
+    } else if (digits.length === 8) {
+      formatted = `${digits.slice(2, 4)}/${digits.slice(4, 6)}/${digits.slice(6, 8)}`;
+    }
+  }
+
+  return parseDeadline(formatted) ? formatted : "";
+}
+
+function normalizeCsvCategory(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "other";
+  const normalized = raw.toLowerCase();
+
+  const matched = CATEGORIES.find(category =>
+    category.id.toLowerCase() === normalized || category.label === raw
+  );
+  return matched ? matched.id : "other";
+}
+
+function normalizeCsvPriority(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (/high|急|高/.test(raw)) return "high";
+  if (/low|余裕|低/.test(raw)) return "low";
+  return "mid";
+}
+
+function csvValueIsTrue(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  return [
+    "1", "true", "yes", "y", "はい", "○", "〇",
+    "done", "completed", "waiting",
+    "完了", "完了済", "完了済み", "済", "確認待ち", "待ち",
+  ].includes(raw);
+}
+
+// UTF-8 / Excelで保存されやすいShift_JISの両方に対応
+async function readCsvText(file) {
+  const buffer = await file.arrayBuffer();
+  const utf8Text = new TextDecoder("utf-8").decode(buffer);
+
+  if (!utf8Text.includes("\uFFFD")) return utf8Text;
+
+  try {
+    return new TextDecoder("shift_jis").decode(buffer);
+  } catch {
+    return utf8Text;
+  }
+}
+
+function downloadCsvTemplate() {
+  const csv = [
+    "タスク名,カテゴリ,優先度,期限,確認待ち,完了,URL,メモ",
+    '"例：LP配色確認",デザイン,急ぎ,26/07/10,いいえ,いいえ,https://example.com,"確認ポイントをメモ"',
+  ].join("\r\n");
+
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "taskapp-import-template.csv";
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 function localToday() {
   const t = new Date();
   return new Date(t.getFullYear(), t.getMonth(), t.getDate(), 0, 0, 0, 0);
@@ -1410,6 +1566,91 @@ export default function App() {
   };
 
 
+  // ── CSVからタスクを追記 ──────────────────────────────────────────────────
+  // 既存タスクは保持し、CSV内のタスクのみを先頭に追加します。
+  const importCsvTasks = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const rows = parseCsvRows(await readCsvText(file));
+
+      if (rows.length < 2) {
+        alert("CSVにヘッダー行とタスク行を1件以上入れてください。");
+        return;
+      }
+
+      const headers = rows[0].map(normalizeCsvHeader);
+      const hasTaskNameColumn = CSV_FIELD_ALIASES.text
+        .map(normalizeCsvHeader)
+        .some(header => headers.includes(header));
+
+      if (!hasTaskNameColumn) {
+        alert("「タスク名」列が見つかりません。CSVテンプレートの形式を確認してください。");
+        return;
+      }
+
+      let skippedCount = 0;
+      let invalidDeadlineCount = 0;
+      const now = Date.now();
+
+      const importedTasks = rows.slice(1).map((row, rowIndex) => {
+        const record = {};
+        headers.forEach((header, columnIndex) => {
+          if (header) record[header] = row[columnIndex] ?? "";
+        });
+
+        const taskText = String(getCsvValue(record, "text")).trim();
+        if (!taskText) {
+          skippedCount += 1;
+          return null;
+        }
+
+        const rawDeadline = getCsvValue(record, "deadline");
+        const deadline = normalizeCsvDeadline(rawDeadline);
+        if (String(rawDeadline).trim() && !deadline) invalidDeadlineCount += 1;
+
+        const done = csvValueIsTrue(getCsvValue(record, "done"));
+
+        return {
+          id: `csv-${now}-${rowIndex}-${Math.random().toString(36).slice(2, 7)}`,
+          text: taskText,
+          category: normalizeCsvCategory(getCsvValue(record, "category")),
+          priority: normalizeCsvPriority(getCsvValue(record, "priority")),
+          deadline,
+          waiting: done ? false : csvValueIsTrue(getCsvValue(record, "waiting")),
+          done,
+          completedAt: done ? now : null,
+          url: String(getCsvValue(record, "url")).trim(),
+          memo: String(getCsvValue(record, "memo")),
+        };
+      }).filter(Boolean);
+
+      if (importedTasks.length === 0) {
+        alert("追加できるタスクがありません。「タスク名」列を入力してください。");
+        return;
+      }
+
+      const details = [
+        `タスク ${importedTasks.length} 件を既存タスクの先頭へ追加します。`,
+        skippedCount ? `空欄の行：${skippedCount} 件は読み込みません。` : "",
+        invalidDeadlineCount ? `期限形式が不正な ${invalidDeadlineCount} 件は、期限なしとして読み込みます。` : "",
+        "現在のタスクは削除・上書きされません。",
+      ].filter(Boolean).join("\n");
+
+      if (!window.confirm(`${details}\n\n追加しますか？`)) return;
+
+      setTasks(previous => [...importedTasks, ...previous]);
+      alert(`${importedTasks.length} 件のタスクを追加しました。`);
+    } catch (error) {
+      console.error(error);
+      alert("CSVの読み込みに失敗しました。文字コードやCSV形式を確認してください。");
+    } finally {
+      e.target.value = ""; // 同じCSVを続けて選択できるようリセット
+    }
+  };
+
+
   const reorderTasks = (dragId, hoverId) => {
     setTasks(prev => {
       const arr = [...prev];
@@ -1651,7 +1892,7 @@ export default function App() {
           {/* add form */}
           <AddTaskForm onAdd={addTask} />
 
-          {/* backup / restore */}
+          {/* backup / restore / CSV import */}
           <div style={{
             background:P.surface, borderRadius:18, padding:"14px 16px",
             border:`1px solid ${P.border}`,
@@ -1659,8 +1900,31 @@ export default function App() {
             <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".12em", textTransform:"uppercase", marginBottom:10 }}>
               データ管理
             </div>
+
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              {/* エクスポート */}
+              {/* CSVテンプレート */}
+              <button onClick={downloadCsvTemplate} style={{
+                width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                background:P.bg, border:`1.5px solid ${P.border}`, borderRadius:12,
+                padding:"9px", fontFamily:"inherit", fontSize:12, color:P.inkSub,
+                cursor:"pointer", letterSpacing:".04em", transition:"all .15s",
+              }}>
+                ↓ CSVテンプレートを保存
+              </button>
+
+              {/* CSVから追記 */}
+              <label style={{
+                width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                background:P.fiestaBg, border:`1.5px solid ${P.fiesta}66`, borderRadius:12,
+                padding:"9px", fontFamily:"inherit", fontSize:12, color:P.fiesta,
+                cursor:"pointer", letterSpacing:".04em", transition:"all .15s",
+                boxSizing:"border-box", fontWeight:500,
+              }}>
+                ＋ CSVからタスクを追加
+                <input type="file" accept=".csv,text/csv" onChange={importCsvTasks} style={{ display:"none" }} />
+              </label>
+
+              {/* バックアップ保存 */}
               <button onClick={exportData} style={{
                 width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
                 background:P.bg, border:`1.5px solid ${P.border}`, borderRadius:12,
@@ -1669,7 +1933,8 @@ export default function App() {
               }}>
                 ↓ バックアップを保存
               </button>
-              {/* インポート */}
+
+              {/* バックアップ復元 */}
               <label style={{
                 width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
                 background:P.bg, border:`1.5px solid ${P.border}`, borderRadius:12,
@@ -1681,8 +1946,13 @@ export default function App() {
                 <input type="file" accept=".json" onChange={importData} style={{ display:"none" }} />
               </label>
             </div>
+
             <div style={{ fontSize:10, color:P.inkFaint, marginTop:8, lineHeight:1.6 }}>
-              キャッシュ削除前に「保存」を押しておくと安心です
+              CSVは既存タスクに追記されます。<br />
+              必須列：タスク名 ／ 任意：カテゴリ・優先度・期限・確認待ち・完了・URL・メモ
+            </div>
+            <div style={{ fontSize:10, color:P.inkFaint, marginTop:6, lineHeight:1.6 }}>
+              キャッシュ削除前に「バックアップを保存」を押しておくと安心です
             </div>
           </div>
 
