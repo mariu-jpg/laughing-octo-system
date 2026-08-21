@@ -853,8 +853,18 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragS
               }}>影響 {i.label}</button>
             ))}
           </div>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+            {EFFORTS.map(e=>(
+              <button key={e.id} onClick={()=>setEditEffort(e.id)} style={{
+                fontFamily:"inherit",fontSize:10,padding:"3px 9px",borderRadius:10,cursor:"pointer",
+                border:`1.5px solid ${editEffort===e.id ? P.dusty : "transparent"}`,
+                background:editEffort===e.id ? P.dustyBg : P.bg,
+                color:editEffort===e.id ? P.dusty : P.inkSub
+              }}>工数 {e.label}</button>
+            ))}
+          </div>
           <div style={{fontSize:11,color:P.inkSub,marginBottom:10}}>
-            現在スコア：{calcValueScore({purpose:editPurpose,impact:editImpact,effort:editEffort})}pt
+            現在スコア：<span style={{color:P.fiesta,fontWeight:700}}>{calcValueScore({purpose:editPurpose,impact:editImpact,effort:editEffort})} pt</span>
           </div>
           {/* deadline */}
           <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".1em", textTransform:"uppercase", marginBottom:6 }}>〆切日</div>
@@ -898,7 +908,7 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragS
             />
           </div>
           <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-            <button onClick={() => { setEditing(false); setEditText(task.text); setEditCat(task.category); setEditPri(task.priority); setEditDl(task.deadline); setEditUrl(task.url); setEditMemo(task.memo); }} style={{
+            <button onClick={() => { setEditing(false); setEditText(task.text); setEditCat(task.category); setEditPurpose(task.purpose || "01"); setEditImpact(task.impact || 3); setEditEffort(task.effort || "day"); setEditDl(task.deadline); setEditUrl(task.url); setEditMemo(task.memo); }} style={{
               background:"none", border:`1px solid ${P.border}`, color:P.inkSub,
               padding:"5px 14px", borderRadius:10, fontSize:11, cursor:"pointer",
             }}>キャンセル</button>
@@ -1435,12 +1445,26 @@ function AddTaskForm({ onAdd }) {
           background:purpose===p.id ? P.fiestaBg : P.bg,color:purpose===p.id ? P.fiesta:P.inkSub
         }}>{p.label}</button>)}
       </div>
-      <div style={{display:"flex",gap:5,marginBottom:12}}>
+      <div style={{fontSize:10,color:P.inkFaint,letterSpacing:".1em",marginBottom:7}}>影響度</div>
+      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
         {IMPACTS.map(i=><button key={i.id} onClick={()=>setImpact(i.id)} style={{
           fontFamily:"inherit",fontSize:11,padding:"4px 10px",borderRadius:12,cursor:"pointer",
           border:`1.5px solid ${impact===i.id ? P.saffron : "transparent"}`,
           background:impact===i.id ? P.saffronBg:P.bg,color:impact===i.id?P.saffron:P.inkSub
         }}>{i.label}</button>)}
+      </div>
+
+      <div style={{fontSize:10,color:P.inkFaint,letterSpacing:".1em",marginBottom:7}}>工数</div>
+      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+        {EFFORTS.map(e=><button key={e.id} onClick={()=>setEffort(e.id)} style={{
+          fontFamily:"inherit",fontSize:11,padding:"4px 10px",borderRadius:12,cursor:"pointer",
+          border:`1.5px solid ${effort===e.id ? P.dusty : "transparent"}`,
+          background:effort===e.id ? P.dustyBg:P.bg,color:effort===e.id?P.dusty:P.inkSub
+        }}>{e.label}</button>)}
+      </div>
+
+      <div style={{fontSize:11,color:P.inkSub,marginBottom:12}}>
+        想定スコア：<span style={{color:P.fiesta,fontWeight:700}}>{calcValueScore({purpose,impact,effort})} pt</span>
       </div>
 
       {/* deadline */}
@@ -1542,7 +1566,14 @@ export default function App() {
       const saved = localStorage.getItem("taskapp-tasks");
       if (!saved) return INITIAL_TASKS;
       const parsed = JSON.parse(saved);
-      return Array.isArray(parsed) ? parsed : INITIAL_TASKS;
+      if (!Array.isArray(parsed)) return INITIAL_TASKS;
+      // 旧バージョンのタスク（成果評価なし）に既定値を補完
+      return parsed.map(t => ({
+        ...t,
+        purpose: t.purpose || "01",
+        impact: Number(t.impact) || 3,
+        effort: t.effort || "day",
+      }));
     } catch {
       return INITIAL_TASKS;
     }
@@ -1593,8 +1624,21 @@ export default function App() {
     setMemos(prev => [{ id:Date.now(), title, body, category, color }, ...prev]);
   };
 
-  const addTask = ({ text, category, priority, deadline }) => {
-    setTasks(prev => [{ id:Date.now(), text, category, purpose, impact, effort, deadline, done:false, waiting:false, url:"", memo:"" }, ...prev]);
+  const addTask = ({ text, category, purpose, impact, effort, priority, deadline }) => {
+    setTasks(prev => [{
+      id: Date.now(),
+      text,
+      category,
+      purpose: purpose || "01",
+      impact: Number(impact) || 3,
+      effort: effort || "day",
+      priority: priority || "mid",
+      deadline,
+      done: false,
+      waiting: false,
+      url: "",
+      memo: "",
+    }, ...prev]);
   };
   const toggleTask = id => setTasks(prev => prev.map(t => {
     if (t.id !== id) return t;
