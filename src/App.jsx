@@ -761,14 +761,18 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragS
   // edit fields
   const [editText, setEditText]   = useState(task.text);
   const [editCat,  setEditCat]    = useState(task.category);
-  const [editPri,  setEditPri]    = useState(task.priority);
+  const [editPurpose, setEditPurpose] = useState(task.purpose || "01");
+  const [editImpact, setEditImpact] = useState(task.impact || 3);
+  const [editEffort, setEditEffort] = useState(task.effort || "day");
   const [editDl,   setEditDl]     = useState(task.deadline);
 
   // sync when task prop changes
   useEffect(() => {
     setEditText(task.text);
     setEditCat(task.category);
-    setEditPri(task.priority);
+    setEditPurpose(task.purpose || "01");
+    setEditImpact(task.impact || 3);
+    setEditEffort(task.effort || "day");
     setEditDl(task.deadline);
     setEditUrl(task.url);
     setEditMemo(task.memo);
@@ -779,7 +783,7 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragS
   const chip = deadlineChip(task.deadline);
 
   const saveEdit = () => {
-    onUpdate(task.id, { text: editText.trim() || task.text, category: editCat, priority: editPri, deadline: editDl, url: editUrl, memo: editMemo });
+    onUpdate(task.id, { text: editText.trim() || task.text, category: editCat, purpose: editPurpose, impact: editImpact, effort: editEffort, deadline: editDl, url: editUrl, memo: editMemo });
     setEditing(false);
     setDirty(false);
   };
@@ -827,18 +831,30 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragS
               }}>{c.emoji} {c.label}</button>
             ))}
           </div>
-          {/* priority */}
-          <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".1em", textTransform:"uppercase", marginBottom:6 }}>優先度</div>
-          <div style={{ display:"flex", gap:4, marginBottom:10 }}>
-            {PRIORITIES.map(p => (
-              <button key={p.id} onClick={() => setEditPri(p.id)} style={{
-                fontFamily:"inherit", fontSize:10, padding:"3px 9px", borderRadius:10, cursor:"pointer",
-                border:`1.5px solid ${editPri===p.id ? p.color : "transparent"}`,
-                background: editPri===p.id ? `${p.color}18` : P.bg,
-                color: editPri===p.id ? p.color : P.inkSub,
-                transition:"all .15s",
-              }}>● {p.label}</button>
+          {/* value score */}
+          <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".1em", textTransform:"uppercase", marginBottom:6 }}>成果評価</div>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+            {PURPOSES.map(p=>(
+              <button key={p.id} onClick={()=>setEditPurpose(p.id)} style={{
+                fontFamily:"inherit",fontSize:10,padding:"3px 9px",borderRadius:10,cursor:"pointer",
+                border:`1.5px solid ${editPurpose===p.id ? P.fiesta : "transparent"}`,
+                background:editPurpose===p.id ? P.fiestaBg : P.bg,
+                color:editPurpose===p.id ? P.fiesta : P.inkSub
+              }}>{p.label}</button>
             ))}
+          </div>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+            {IMPACTS.map(i=>(
+              <button key={i.id} onClick={()=>setEditImpact(i.id)} style={{
+                fontFamily:"inherit",fontSize:10,padding:"3px 9px",borderRadius:10,cursor:"pointer",
+                border:`1.5px solid ${editImpact===i.id ? P.saffron : "transparent"}`,
+                background:editImpact===i.id ? P.saffronBg : P.bg,
+                color:editImpact===i.id ? P.saffron : P.inkSub
+              }}>影響 {i.label}</button>
+            ))}
+          </div>
+          <div style={{fontSize:11,color:P.inkSub,marginBottom:10}}>
+            現在スコア：{calcValueScore({purpose:editPurpose,impact:editImpact,effort:editEffort})}pt
           </div>
           {/* deadline */}
           <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".1em", textTransform:"uppercase", marginBottom:6 }}>〆切日</div>
@@ -917,7 +933,11 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragS
             <span style={{ fontSize:10, padding:"2px 7px", borderRadius:7, background:cat.bg, color:cat.color }}>
               {cat.emoji} {cat.label}
             </span>
-            <span style={{ fontSize:10, color:pri.color }}>● {pri.label}</span>
+            <span style={{ fontSize:10, padding:"2px 7px", borderRadius:7, background:P.fiestaBg, color:P.fiesta }}>
+{PURPOSES.find(p=>p.id===task.purpose)?.label || "未設定"}
+</span>
+<span style={{fontSize:10,color:P.saffron}}>★{task.impact || 0}</span>
+<span style={{fontSize:10,color:P.inkSub}}>{calcValueScore(task)}pt</span>
             {chip && (
               <span style={{
                 fontSize:10, padding:"2px 7px", borderRadius:7,
@@ -1360,13 +1380,15 @@ function ChatworkReminderForm() {
 function AddTaskForm({ onAdd }) {
   const [text,   setText]   = useState("");
   const [cat,    setCat]    = useState("design");
-  const [pri,    setPri]    = useState("mid");
+  const [purpose, setPurpose] = useState("01");
+  const [impact, setImpact] = useState(3);
+  const [effort, setEffort] = useState("day");
   const [dl,     setDl]     = useState("");
   const inputRef = useRef(null);
 
   const handleAdd = () => {
     if (!text.trim()) return;
-    onAdd({ text:text.trim(), category:cat, priority:pri, deadline:dl });
+    onAdd({ text:text.trim(), category:cat, purpose, impact, effort, deadline:dl });
     setText(""); setDl("");
   };
 
@@ -1404,18 +1426,21 @@ function AddTaskForm({ onAdd }) {
         ))}
       </div>
 
-      {/* priority */}
-      <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".1em", textTransform:"uppercase", marginBottom:7 }}>優先度</div>
-      <div style={{ display:"flex", gap:5, marginBottom:12 }}>
-        {PRIORITIES.map(p => (
-          <button key={p.id} onClick={() => setPri(p.id)} style={{
-            fontFamily:"inherit", fontSize:11, padding:"4px 11px", borderRadius:12, cursor:"pointer",
-            border:`1.5px solid ${pri===p.id ? p.color : "transparent"}`,
-            background: pri===p.id ? `${p.color}18` : P.bg,
-            color: pri===p.id ? p.color : P.inkSub,
-            transition:"all .15s",
-          }}>● {p.label}</button>
-        ))}
+      {/* value */}
+      <div style={{fontSize:10,color:P.inkFaint,letterSpacing:".1em",marginBottom:7}}>成果分類</div>
+      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+        {PURPOSES.map(p=><button key={p.id} onClick={()=>setPurpose(p.id)} style={{
+          fontFamily:"inherit",fontSize:11,padding:"4px 10px",borderRadius:12,cursor:"pointer",
+          border:`1.5px solid ${purpose===p.id ? P.fiesta : "transparent"}`,
+          background:purpose===p.id ? P.fiestaBg : P.bg,color:purpose===p.id ? P.fiesta:P.inkSub
+        }}>{p.label}</button>)}
+      </div>
+      <div style={{display:"flex",gap:5,marginBottom:12}}>
+        {IMPACTS.map(i=><button key={i.id} onClick={()=>setImpact(i.id)} style={{
+          fontFamily:"inherit",fontSize:11,padding:"4px 10px",borderRadius:12,cursor:"pointer",
+          border:`1.5px solid ${impact===i.id ? P.saffron : "transparent"}`,
+          background:impact===i.id ? P.saffronBg:P.bg,color:impact===i.id?P.saffron:P.inkSub
+        }}>{i.label}</button>)}
       </div>
 
       {/* deadline */}
@@ -1456,9 +1481,7 @@ const FILTERS = [
   { id:"deadline", label:"🗓 〆切あり"    },
   { id:"meeting",  label:"◈ 打ち合わせ"  },
   { id:"memos",    label:"📋 メモ"       },
-  { id:"pri_high", label:"● 急ぎ"        },
-  { id:"pri_mid",  label:"● 普通"        },
-  { id:"pri_low",  label:"● 余裕"        },
+
   { id:"price",    label:"◉ 値上げ"      },
   { id:"design",   label:"✦ デザイン"    },
   { id:"coding",   label:"⟨⟩ コーディング" },
@@ -1529,7 +1552,7 @@ export default function App() {
   };
 
   const addTask = ({ text, category, priority, deadline }) => {
-    setTasks(prev => [{ id:Date.now(), text, category, priority, purpose:"01", impact:3, effort:"day", deadline, done:false, waiting:false, url:"", memo:"" }, ...prev]);
+    setTasks(prev => [{ id:Date.now(), text, category, purpose, impact, effort, deadline, done:false, waiting:false, url:"", memo:"" }, ...prev]);
   };
   const toggleTask = id => setTasks(prev => prev.map(t => {
     if (t.id !== id) return t;
@@ -1995,7 +2018,7 @@ export default function App() {
 
         {/* filters — 1行目: ステータス系 / 2行目: カテゴリ系 */}
         {(() => {
-          const ROW1 = ["all","waiting","deadline","memos","pri_high","pri_mid","pri_low","done"];
+          const ROW1 = ["all","waiting","deadline","memos","done"];
           const ROW2 = ["price","design","coding","meeting","item","contents","sales","other"];
           const btnStyle = (f) => ({
             flexShrink:0, fontFamily:"'Noto Sans JP',sans-serif",
