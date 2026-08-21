@@ -32,6 +32,38 @@ const CATEGORIES = [
   { id:"price",    label:"値上げ",       emoji:"◉",  color:P.dusty,    bg:P.dustyBg   },
 ];
 
+
+// === HARUTAS Task Value Management v2 additions ===
+const PURPOSES = [
+  { id:"01", label:"01 新規売上創出", score:5 },
+  { id:"02", label:"02 CV改善", score:3 },
+  { id:"03", label:"03 業務改善", score:1 },
+  { id:"04", label:"04 対応・修正", score:0 },
+];
+
+const IMPACTS = [
+  { id:5, label:"★★★★★" },
+  { id:4, label:"★★★★" },
+  { id:3, label:"★★★" },
+  { id:2, label:"★★" },
+  { id:1, label:"★" },
+];
+
+const EFFORTS = [
+  { id:"1h", label:"〜1時間", score:5 },
+  { id:"half", label:"〜半日", score:4 },
+  { id:"day", label:"1日", score:3 },
+  { id:"3day", label:"2〜3日", score:2 },
+  { id:"week", label:"1週間以上", score:1 },
+];
+
+function calcValueScore(task){
+  const purpose = PURPOSES.find(p=>p.id===task.purpose)?.score || 0;
+  const impact = Number(task.impact || 1);
+  const effort = EFFORTS.find(e=>e.id===task.effort)?.score || 1;
+  return purpose * impact * effort;
+}
+
 const PRIORITIES = [
   { id:"high", label:"急ぎ",  color:P.fiesta   },
   { id:"mid",  label:"普通",  color:P.dusty    },
@@ -44,8 +76,8 @@ const ENCOURAGEMENTS = [
 ];
 
 const INITIAL_TASKS = [
-  { id:1, text:"バナーデザイン修正",      category:"design",  done:false, waiting:false, priority:"high", deadline:"25/06/10", url:"",                    memo:""         },
-  { id:2, text:"クライアントMTG資料準備",  category:"meeting", done:false, waiting:true,  priority:"high", deadline:"25/06/07", url:"",                    memo:"3Fの会議室" },
+  { id:1, text:"バナーデザイン修正",      category:"design",  done:false, waiting:false, priority:"high", purpose:"02", impact:3, effort:"half", deadline:"25/06/10", url:"",                    memo:""         },
+  { id:2, text:"クライアントMTG資料準備",  category:"meeting", done:false, waiting:true,  priority:"high", purpose:"02", impact:3, effort:"half", deadline:"25/06/07", url:"",                    memo:"3Fの会議室" },
   { id:3, text:"LP配色確認",              category:"design",  done:true,  waiting:false, priority:"mid",  deadline:"",         url:"",                    memo:""         },
   { id:4, text:"カート実装",              category:"coding",  done:false, waiting:false, priority:"mid",  deadline:"25/06/20", url:"https://github.com",  memo:""         },
 ];
@@ -1497,7 +1529,7 @@ export default function App() {
   };
 
   const addTask = ({ text, category, priority, deadline }) => {
-    setTasks(prev => [{ id:Date.now(), text, category, priority, deadline, done:false, waiting:false, url:"", memo:"" }, ...prev]);
+    setTasks(prev => [{ id:Date.now(), text, category, priority, purpose:"01", impact:3, effort:"day", deadline, done:false, waiting:false, url:"", memo:"" }, ...prev]);
   };
   const toggleTask = id => setTasks(prev => prev.map(t => {
     if (t.id !== id) return t;
