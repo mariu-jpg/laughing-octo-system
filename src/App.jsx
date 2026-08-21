@@ -761,14 +761,18 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragS
   // edit fields
   const [editText, setEditText]   = useState(task.text);
   const [editCat,  setEditCat]    = useState(task.category);
-  const [editPri,  setEditPri]    = useState(task.priority);
+  const [editPurpose, setEditPurpose] = useState(task.purpose || "01");
+  const [editImpact, setEditImpact] = useState(task.impact || 3);
+  const [editEffort, setEditEffort] = useState(task.effort || "day");
   const [editDl,   setEditDl]     = useState(task.deadline);
 
   // sync when task prop changes
   useEffect(() => {
     setEditText(task.text);
     setEditCat(task.category);
-    setEditPri(task.priority);
+    setEditPurpose(task.purpose || "01");
+    setEditImpact(task.impact || 3);
+    setEditEffort(task.effort || "day");
     setEditDl(task.deadline);
     setEditUrl(task.url);
     setEditMemo(task.memo);
@@ -779,7 +783,7 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragS
   const chip = deadlineChip(task.deadline);
 
   const saveEdit = () => {
-    onUpdate(task.id, { text: editText.trim() || task.text, category: editCat, priority: editPri, deadline: editDl, url: editUrl, memo: editMemo });
+    onUpdate(task.id, { text: editText.trim() || task.text, category: editCat, purpose: editPurpose, impact: editImpact, effort: editEffort, deadline: editDl, url: editUrl, memo: editMemo });
     setEditing(false);
     setDirty(false);
   };
@@ -827,18 +831,30 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragS
               }}>{c.emoji} {c.label}</button>
             ))}
           </div>
-          {/* priority */}
-          <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".1em", textTransform:"uppercase", marginBottom:6 }}>優先度</div>
-          <div style={{ display:"flex", gap:4, marginBottom:10 }}>
-            {PRIORITIES.map(p => (
-              <button key={p.id} onClick={() => setEditPri(p.id)} style={{
-                fontFamily:"inherit", fontSize:10, padding:"3px 9px", borderRadius:10, cursor:"pointer",
-                border:`1.5px solid ${editPri===p.id ? p.color : "transparent"}`,
-                background: editPri===p.id ? `${p.color}18` : P.bg,
-                color: editPri===p.id ? p.color : P.inkSub,
-                transition:"all .15s",
-              }}>● {p.label}</button>
+          {/* value score */}
+          <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".1em", textTransform:"uppercase", marginBottom:6 }}>成果評価</div>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+            {PURPOSES.map(p=>(
+              <button key={p.id} onClick={()=>setEditPurpose(p.id)} style={{
+                fontFamily:"inherit",fontSize:10,padding:"3px 9px",borderRadius:10,cursor:"pointer",
+                border:`1.5px solid ${editPurpose===p.id ? P.fiesta : "transparent"}`,
+                background:editPurpose===p.id ? P.fiestaBg : P.bg,
+                color:editPurpose===p.id ? P.fiesta : P.inkSub
+              }}>{p.label}</button>
             ))}
+          </div>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+            {IMPACTS.map(i=>(
+              <button key={i.id} onClick={()=>setEditImpact(i.id)} style={{
+                fontFamily:"inherit",fontSize:10,padding:"3px 9px",borderRadius:10,cursor:"pointer",
+                border:`1.5px solid ${editImpact===i.id ? P.saffron : "transparent"}`,
+                background:editImpact===i.id ? P.saffronBg : P.bg,
+                color:editImpact===i.id ? P.saffron : P.inkSub
+              }}>影響 {i.label}</button>
+            ))}
+          </div>
+          <div style={{fontSize:11,color:P.inkSub,marginBottom:10}}>
+            現在スコア：{calcValueScore({purpose:editPurpose,impact:editImpact,effort:editEffort})}pt
           </div>
           {/* deadline */}
           <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".1em", textTransform:"uppercase", marginBottom:6 }}>〆切日</div>
@@ -917,7 +933,11 @@ function TaskCard({ task, onToggle, onToggleWaiting, onDelete, onUpdate, onDragS
             <span style={{ fontSize:10, padding:"2px 7px", borderRadius:7, background:cat.bg, color:cat.color }}>
               {cat.emoji} {cat.label}
             </span>
-            <span style={{ fontSize:10, color:pri.color }}>● {pri.label}</span>
+            <span style={{ fontSize:10, padding:"2px 7px", borderRadius:7, background:P.fiestaBg, color:P.fiesta }}>
+{PURPOSES.find(p=>p.id===task.purpose)?.label || "未設定"}
+</span>
+<span style={{fontSize:10,color:P.saffron}}>★{task.impact || 0}</span>
+<span style={{fontSize:10,color:P.inkSub}}>{calcValueScore(task)}pt</span>
             {chip && (
               <span style={{
                 fontSize:10, padding:"2px 7px", borderRadius:7,
@@ -1360,13 +1380,15 @@ function ChatworkReminderForm() {
 function AddTaskForm({ onAdd }) {
   const [text,   setText]   = useState("");
   const [cat,    setCat]    = useState("design");
-  const [pri,    setPri]    = useState("mid");
+  const [purpose, setPurpose] = useState("01");
+  const [impact, setImpact] = useState(3);
+  const [effort, setEffort] = useState("day");
   const [dl,     setDl]     = useState("");
   const inputRef = useRef(null);
 
   const handleAdd = () => {
     if (!text.trim()) return;
-    onAdd({ text:text.trim(), category:cat, priority:pri, deadline:dl });
+    onAdd({ text:text.trim(), category:cat, purpose, impact, effort, deadline:dl });
     setText(""); setDl("");
   };
 
@@ -1404,18 +1426,21 @@ function AddTaskForm({ onAdd }) {
         ))}
       </div>
 
-      {/* priority */}
-      <div style={{ fontSize:10, color:P.inkFaint, letterSpacing:".1em", textTransform:"uppercase", marginBottom:7 }}>優先度</div>
-      <div style={{ display:"flex", gap:5, marginBottom:12 }}>
-        {PRIORITIES.map(p => (
-          <button key={p.id} onClick={() => setPri(p.id)} style={{
-            fontFamily:"inherit", fontSize:11, padding:"4px 11px", borderRadius:12, cursor:"pointer",
-            border:`1.5px solid ${pri===p.id ? p.color : "transparent"}`,
-            background: pri===p.id ? `${p.color}18` : P.bg,
-            color: pri===p.id ? p.color : P.inkSub,
-            transition:"all .15s",
-          }}>● {p.label}</button>
-        ))}
+      {/* value */}
+      <div style={{fontSize:10,color:P.inkFaint,letterSpacing:".1em",marginBottom:7}}>成果分類</div>
+      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+        {PURPOSES.map(p=><button key={p.id} onClick={()=>setPurpose(p.id)} style={{
+          fontFamily:"inherit",fontSize:11,padding:"4px 10px",borderRadius:12,cursor:"pointer",
+          border:`1.5px solid ${purpose===p.id ? P.fiesta : "transparent"}`,
+          background:purpose===p.id ? P.fiestaBg : P.bg,color:purpose===p.id ? P.fiesta:P.inkSub
+        }}>{p.label}</button>)}
+      </div>
+      <div style={{display:"flex",gap:5,marginBottom:12}}>
+        {IMPACTS.map(i=><button key={i.id} onClick={()=>setImpact(i.id)} style={{
+          fontFamily:"inherit",fontSize:11,padding:"4px 10px",borderRadius:12,cursor:"pointer",
+          border:`1.5px solid ${impact===i.id ? P.saffron : "transparent"}`,
+          background:impact===i.id ? P.saffronBg:P.bg,color:impact===i.id?P.saffron:P.inkSub
+        }}>{i.label}</button>)}
       </div>
 
       {/* deadline */}
@@ -1456,9 +1481,7 @@ const FILTERS = [
   { id:"deadline", label:"🗓 〆切あり"    },
   { id:"meeting",  label:"◈ 打ち合わせ"  },
   { id:"memos",    label:"📋 メモ"       },
-  { id:"pri_high", label:"● 急ぎ"        },
-  { id:"pri_mid",  label:"● 普通"        },
-  { id:"pri_low",  label:"● 余裕"        },
+
   { id:"price",    label:"◉ 値上げ"      },
   { id:"design",   label:"✦ デザイン"    },
   { id:"coding",   label:"⟨⟩ コーディング" },
@@ -1472,47 +1495,45 @@ const FILTERS = [
 const priOrder = { high:0, mid:1, low:2 };
 
 
-function AchievementDashboard({tasks=[]}) {
+function getPeriodStats(tasks, type){
   const now = new Date();
-  const startDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startWeek = new Date(startDay);
-  startWeek.setDate(startDay.getDate()-7);
-  const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-  const stats = (start) => {
-    const list = tasks.filter(t => t.done && t.completedAt && new Date(t.completedAt)>=start);
-    return {
-      count:list.length,
-      score:list.reduce((s,t)=>s+(typeof calcValueScore==="function"?calcValueScore(t):0),0),
-      one:list.filter(t=>t.purpose==="01").length,
-      two:list.filter(t=>t.purpose==="02").length,
-    };
+  const start = new Date(now);
+  if(type === "today"){
+    start.setHours(0,0,0,0);
+  } else if(type === "week"){
+    start.setDate(now.getDate()-7);
+    start.setHours(0,0,0,0);
+  } else {
+    start.setDate(1);
+    start.setHours(0,0,0,0);
+  }
+  const done = tasks.filter(t=>t.done && t.completedAt && new Date(t.completedAt)>=start);
+  return {
+    count: done.length,
+    score: done.reduce((a,t)=>a+calcValueScore(t),0),
+    p01: done.filter(t=>t.purpose==="01").length,
+    p02: done.filter(t=>t.purpose==="02").length,
+    p03: done.filter(t=>t.purpose==="03").length,
   };
+}
 
-  const Card=({title,data})=><div style={{
-    background:P.surface,border:`1px solid ${P.border}`,borderRadius:14,padding:"12px",marginBottom:8
-  }}>
-    <div style={{fontSize:11,fontWeight:700,marginBottom:8}}>{title}</div>
-    <div style={{fontSize:13}}>完了 {data.count}件</div>
-    <div style={{fontSize:13}}>成果 {data.score}pt</div>
-    <div style={{fontSize:11,color:P.inkSub}}>01新規売上 {data.one}件 / 02CV改善 {data.two}件</div>
-  </div>;
-
-  const top = tasks.filter(t=>!t.done).map(t=>({...t,_score:typeof calcValueScore==="function"?calcValueScore(t):0}))
-    .sort((a,b)=>b._score-a._score).slice(0,5);
-
+function AchievementDashboard({tasks=[]}){
+  const card=(title,type)=> {
+    const s=getPeriodStats(tasks,type);
+    return (
+      <div style={{background:P.surface,borderRadius:18,padding:"12px 14px",border:`1px solid ${P.border}`,marginBottom:10}}>
+        <div style={{fontSize:10,color:P.inkFaint,letterSpacing:".1em",marginBottom:8}}>{title}</div>
+        <div style={{fontSize:24,color:P.ink}}>{s.count}<span style={{fontSize:12}}> 件</span></div>
+        <div style={{fontSize:12,color:P.fiesta,fontWeight:700}}>{s.score} pt</div>
+        <div style={{fontSize:10,color:P.inkSub,marginTop:6}}>01売上 {s.p01}件 / 02改善 {s.p02}件</div>
+      </div>
+    )
+  };
   return <div>
-    <div style={{fontSize:10,color:P.inkFaint,letterSpacing:".1em",marginBottom:8}}>成果ダッシュボード</div>
-    <Card title="今日" data={stats(startDay)}/>
-    <Card title="今週" data={stats(startWeek)}/>
-    <Card title="今月" data={stats(startMonth)}/>
-    <div style={{fontSize:10,color:P.inkFaint,letterSpacing:".1em",margin:"14px 0 8px"}}>今週TOP5</div>
-    {top.map((t,i)=><div key={t.id} style={{
-      background:P.surface,border:`1px solid ${P.border}`,borderRadius:12,padding:10,marginBottom:6,fontSize:12
-    }}>
-      🥇{ i+1 } {t.text}<br/><span style={{color:P.fiesta}}>{t._score}pt</span>
-    </div>)}
-  </div>;
+    {card("今日","today")}
+    {card("今週","week")}
+    {card("今月","month")}
+  </div>
 }
 
 export default function App() {
@@ -1573,7 +1594,7 @@ export default function App() {
   };
 
   const addTask = ({ text, category, priority, deadline }) => {
-    setTasks(prev => [{ id:Date.now(), text, category, priority, purpose:"01", impact:3, effort:"day", deadline, done:false, waiting:false, url:"", memo:"" }, ...prev]);
+    setTasks(prev => [{ id:Date.now(), text, category, purpose, impact, effort, deadline, done:false, waiting:false, url:"", memo:"" }, ...prev]);
   };
   const toggleTask = id => setTasks(prev => prev.map(t => {
     if (t.id !== id) return t;
@@ -1965,6 +1986,17 @@ export default function App() {
         {/* chatwork reminder */}
           <ChatworkReminderForm />
 
+
+          {/* weekly top5 */}
+          <div style={{background:P.surface,borderRadius:18,padding:"14px 16px",border:`1px solid ${P.border}`,marginBottom:10}}>
+            <div style={{fontSize:10,color:P.inkFaint,letterSpacing:".12em",marginBottom:10}}>今週TOP5</div>
+            {tasks.filter(t=>!t.done).map(t=>({...t,score:calcValueScore(t)})).sort((a,b)=>b.score-a.score).slice(0,5).map((t,i)=>(
+              <div key={t.id} style={{fontSize:12,padding:"6px 0",borderBottom:`1px solid ${P.border}`}}>
+                {i+1}. {t.text}<span style={{float:"right",color:P.fiesta}}>{t.score}pt</span>
+              </div>
+            ))}
+          </div>
+
           {/* add form */}
           <AddTaskForm onAdd={addTask} />
 
@@ -2039,7 +2071,7 @@ export default function App() {
 
         {/* filters — 1行目: ステータス系 / 2行目: カテゴリ系 */}
         {(() => {
-          const ROW1 = ["all","waiting","deadline","memos","pri_high","pri_mid","pri_low","done"];
+          const ROW1 = ["all","waiting","deadline","memos","done"];
           const ROW2 = ["price","design","coding","meeting","item","contents","sales","other"];
           const btnStyle = (f) => ({
             flexShrink:0, fontFamily:"'Noto Sans JP',sans-serif",
