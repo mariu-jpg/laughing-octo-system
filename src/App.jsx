@@ -1494,6 +1494,69 @@ const FILTERS = [
 
 const priOrder = { high:0, mid:1, low:2 };
 
+
+// 成果ダッシュボード集計
+function getAchievementStats(tasks, period="month"){
+  const now = new Date();
+  const start = new Date();
+
+  if(period === "week"){
+    start.setDate(now.getDate() - 7);
+  } else if(period === "day"){
+    start.setHours(0,0,0,0);
+  } else {
+    start.setDate(1);
+    start.setHours(0,0,0,0);
+  }
+
+  const completed = tasks.filter(t =>
+    t.done &&
+    t.completedAt &&
+    new Date(t.completedAt) >= start
+  );
+
+  return {
+    count: completed.length,
+    release01: completed.filter(t=>t.purpose==="01").length,
+    cv02: completed.filter(t=>t.purpose==="02").length,
+    improve03: completed.filter(t=>t.purpose==="03").length,
+    score: completed.reduce((sum,t)=>sum+calcValueScore(t),0)
+  };
+}
+
+
+
+// ===== Achievement Dashboard UI =====
+// 完了済みタスクから今日/今週/今月の成果を表示するためのコンポーネント
+function AchievementDashboard({tasks=[]}) {
+  const renderStats = (title, period) => {
+    const stats = getAchievementStats(tasks, period);
+    return (
+      <div style={{
+        background:"#fff",
+        borderRadius:16,
+        padding:16,
+        marginBottom:10,
+        border:"1px solid #eee"
+      }}>
+        <div style={{fontWeight:700,marginBottom:8}}>{title}</div>
+        <div>完了：{stats.count}件</div>
+        <div>成果：{stats.score}pt</div>
+        <div>01 新規売上：{stats.release01}件</div>
+        <div>02 CV改善：{stats.cv02}件</div>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {renderStats("今日","day")}
+      {renderStats("今週","week")}
+      {renderStats("今月","month")}
+    </div>
+  );
+}
+
 export default function App() {
   const [tasks, setTasks] = useState(() => {
     try {
